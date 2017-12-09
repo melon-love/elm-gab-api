@@ -1,0 +1,727 @@
+{
+  "openapi" : "3.0.0",
+  "servers" : [ {
+    "url" : "https://api.gab.ai/v1.0/"
+  } ],
+  "info" : {
+    "version" : "1.0.0-oas3",
+    "title" : "Gab.ai API",
+    "contact" : {
+      "email" : "developers@gab.ai"
+    }
+  },
+  "paths" : {
+    "/feed" : {
+      "get" : {
+        "security" : [ {
+          "oauth2" : [ "read" ]
+        } ],
+        "tags" : [ "Home Feed" ],
+        "description" : "For attaching GIFs and media attachments, you need to check out related endpoints.",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "before",
+          "description" : "DateTime string to get posts **before** this date",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "after",
+          "description" : "DateTime string to get posts **after** this date",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Posts of home feed",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ActivityLogList"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/popular/feed" : {
+      "get" : {
+        "tags" : [ "Popular" ],
+        "description" : "Popular posts.",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "before",
+          "description" : "DateTime string to get posts **before** this date",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "after",
+          "description" : "DateTime string to get posts **after** this date",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Posts of home feed",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PostList"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/popular/users" : {
+      "get" : {
+        "security" : [ {
+          "oauth2" : [ "read" ]
+        } ],
+        "tags" : [ "Popular" ],
+        "description" : "Popular users.",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "before",
+          "description" : "DateTime string to get posts **before** this date",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "after",
+          "description" : "DateTime string to get posts **after** this date",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Posts of home feed",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object",
+                  "items" : {
+                    "$ref" : "#/components/schemas/UserList"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{username}" : {
+      "parameters" : [ {
+        "name" : "username",
+        "in" : "path",
+        "description" : "Username of the user",
+        "required" : true,
+        "schema" : {
+          "type" : "string"
+        }
+      } ],
+      "get" : {
+        "security" : [ {
+          "oauth2" : [ "read" ]
+        } ],
+        "tags" : [ "Details of a user" ],
+        "responses" : {
+          "200" : {
+            "description" : "User details",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/User"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{username}/followers" : {
+      "parameters" : [ {
+        "name" : "username",
+        "in" : "path",
+        "description" : "Username of the user",
+        "required" : true,
+        "schema" : {
+          "type" : "string"
+        }
+      } ],
+      "get" : {
+        "security" : [ {
+          "oauth2" : [ "read" ]
+        } ],
+        "tags" : [ "Details of a user" ],
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "before",
+          "description" : "Offset to skip",
+          "required" : false,
+          "schema" : {
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Follower list",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{username}/following" : {
+      "parameters" : [ {
+        "name" : "username",
+        "in" : "path",
+        "description" : "Username of the user",
+        "required" : true,
+        "schema" : {
+          "type" : "string"
+        }
+      } ],
+      "get" : {
+        "security" : [ {
+          "oauth2" : [ "read" ]
+        } ],
+        "tags" : [ "Details of a user" ],
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "before",
+          "description" : "Offset to skip",
+          "required" : false,
+          "schema" : {
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Follower list",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{username}/feed" : {
+      "parameters" : [ {
+        "name" : "username",
+        "in" : "path",
+        "description" : "Username of the user of the feed",
+        "required" : true,
+        "schema" : {
+          "type" : "string"
+        }
+      } ],
+      "get" : {
+        "security" : [ {
+          "oauth2" : [ "read" ]
+        } ],
+        "tags" : [ "Details of a user" ],
+        "description" : "Returns posts of a user",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "before",
+          "description" : "DateTime string to get posts **before** this date",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Posts of home feed",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ActivityLogList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{username}/follow" : {
+      "parameters" : [ {
+        "name" : "username",
+        "in" : "path",
+        "description" : "Username of the user",
+        "required" : true,
+        "schema" : {
+          "type" : "string"
+        }
+      } ],
+      "post" : {
+        "security" : [ {
+          "oauth2" : [ "engage-user" ]
+        } ],
+        "tags" : [ "Actions for a user" ],
+        "responses" : {
+          "200" : {
+            "description" : "Success message"
+          }
+        }
+      },
+      "delete" : {
+        "security" : [ {
+          "oauth2" : [ "engage-user" ]
+        } ],
+        "tags" : [ "Actions for a user" ],
+        "responses" : {
+          "200" : {
+            "description" : "Success message"
+          }
+        }
+      }
+    },
+    "/users/{username}/mute" : {
+      "parameters" : [ {
+        "name" : "username",
+        "in" : "path",
+        "description" : "Username of the user",
+        "required" : true,
+        "schema" : {
+          "type" : "string"
+        }
+      } ],
+      "post" : {
+        "security" : [ {
+          "oauth2" : [ "engage-user" ]
+        } ],
+        "tags" : [ "Actions for a user" ],
+        "responses" : {
+          "200" : {
+            "description" : "Success message"
+          }
+        }
+      },
+      "delete" : {
+        "security" : [ {
+          "oauth2" : [ "engage-user" ]
+        } ],
+        "tags" : [ "Actions for a user" ],
+        "responses" : {
+          "200" : {
+            "description" : "Success message"
+          }
+        }
+      }
+    },
+    "/posts/{post-id}/like" : {
+      "parameters" : [ {
+        "name" : "post-id",
+        "in" : "path",
+        "description" : "ID of the post",
+        "required" : true,
+        "schema" : {
+          "type" : "string"
+        }
+      } ],
+      "post" : {
+        "security" : [ {
+          "oauth2" : [ "engage-post" ]
+        } ],
+        "tags" : [ "Actions for a post" ],
+        "responses" : {
+          "200" : {
+            "description" : "Success message"
+          }
+        }
+      },
+      "delete" : {
+        "security" : [ {
+          "oauth2" : [ "engage-post" ]
+        } ],
+        "tags" : [ "Actions for a post" ],
+        "responses" : {
+          "200" : {
+            "description" : "Success message"
+          }
+        }
+      }
+    },
+    "/posts/{post-id}/dislike" : {
+      "parameters" : [ {
+        "name" : "post-id",
+        "in" : "path",
+        "description" : "ID of the post",
+        "required" : true,
+        "schema" : {
+          "type" : "string"
+        }
+      } ],
+      "post" : {
+        "security" : [ {
+          "oauth2" : [ "engage-post" ]
+        } ],
+        "tags" : [ "Actions for a post" ],
+        "responses" : {
+          "200" : {
+            "description" : "Success message"
+          }
+        }
+      },
+      "delete" : {
+        "security" : [ {
+          "oauth2" : [ "engage-post" ]
+        } ],
+        "tags" : [ "Actions for a post" ],
+        "responses" : {
+          "200" : {
+            "description" : "Success message"
+          }
+        }
+      }
+    },
+    "/posts/{post-id}/repost" : {
+      "parameters" : [ {
+        "name" : "post-id",
+        "in" : "path",
+        "description" : "ID of the post",
+        "required" : true,
+        "schema" : {
+          "type" : "string"
+        }
+      } ],
+      "post" : {
+        "security" : [ {
+          "oauth2" : [ "engage-post" ]
+        } ],
+        "tags" : [ "Actions for a post" ],
+        "responses" : {
+          "200" : {
+            "description" : "Success message"
+          }
+        }
+      },
+      "delete" : {
+        "security" : [ {
+          "oauth2" : [ "engage-post" ]
+        } ],
+        "tags" : [ "Actions for a post" ],
+        "responses" : {
+          "200" : {
+            "description" : "Success message"
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "securitySchemes" : {
+      "oauth2" : {
+        "type" : "oauth2",
+        "description" : "This API uses OAuth 2 with the authorization code grant flow.",
+        "flows" : {
+          "authorizationCode" : {
+            "authorizationUrl" : "https://api.gab.ai/oauth/authorize",
+            "tokenUrl" : "https://api.gab.ai/oauth/token",
+            "scopes" : {
+              "read" : "Read access to your profile and feeds",
+              "engage-user" : "Follow or mute users",
+              "engage-post" : "Vote, repost or report posts",
+              "notifications" : "Access notifications"
+            }
+          }
+        }
+      }
+    },
+    "schemas" : {
+      "ActivityLogList" : {
+        "type" : "object",
+        "required" : [ "data" ],
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ActivityLog"
+            }
+          },
+          "no-more" : {
+            "type" : "boolean",
+            "description" : "Indicates if there are more posts you can load by using `before` parameter"
+          }
+        }
+      },
+      "ActivityLog" : {
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "example" : "2357864"
+          },
+          "published_at" : {
+            "type" : "string",
+            "format" : "date",
+            "example" : "2017-11-29T12:13:55+00:00"
+          },
+          "actuser" : {
+            "$ref" : "#/components/schemas/User"
+          },
+          "post" : {
+            "$ref" : "#/components/schemas/Post"
+          },
+          "type" : {
+            "type" : "string",
+            "example" : "post or report"
+          }
+        },
+        "type" : "object"
+      },
+      "Post" : {
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "example" : 1
+          },
+          "created_at" : {
+            "type" : "string",
+            "format" : "dateTime",
+            "example" : "2016-08-10T06:58:37+00:00"
+          },
+          "revised_at" : {
+            "type" : "string",
+            "example" : "2016-08-10T06:58:37+00:00 or null"
+          },
+          "edited" : {
+            "type" : "boolean",
+            "example" : true
+          },
+          "body" : {
+            "type" : "string",
+            "example" : "Hello world!"
+          },
+          "liked" : {
+            "type" : "boolean",
+            "example" : true
+          },
+          "disliked" : {
+            "type" : "boolean",
+            "example" : true
+          },
+          "bookmarked" : {
+            "type" : "boolean",
+            "example" : true
+          },
+          "reposted" : {
+            "type" : "boolean",
+            "example" : true
+          },
+          "score" : {
+            "type" : "integer",
+            "example" : 310
+          },
+          "like_count" : {
+            "type" : "integer",
+            "example" : 320
+          },
+          "dislike_count" : {
+            "type" : "integer",
+            "example" : 10
+          },
+          "is_quote" : {
+            "type" : "boolean",
+            "example" : false
+          },
+          "is_reply" : {
+            "type" : "boolean",
+            "example" : false
+          },
+          "attachment" : {
+            "type" : "object",
+            "example" : "{  }"
+          },
+          "category" : {
+            "type" : "integer",
+            "example" : "1 or null"
+          },
+          "category_details" : {
+            "type" : "object",
+            "example" : "{}"
+          },
+          "language" : {
+            "type" : "string",
+            "example" : "tr or null"
+          },
+          "nsfw" : {
+            "type" : "boolean",
+            "example" : false
+          },
+          "is_premium" : {
+            "type" : "boolean",
+            "example" : false
+          },
+          "is_locked" : {
+            "type" : "boolean",
+            "description" : "If the post is premium and the author isn't subscribed, this post is locked.",
+            "example" : false
+          },
+          "user" : {
+            "$ref" : "#/components/schemas/User"
+          }
+        },
+        "type" : "object"
+      },
+      "PostList" : {
+        "type" : "object",
+        "required" : [ "data" ],
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/User"
+            }
+          }
+        }
+      },
+      "UserList" : {
+        "type" : "object",
+        "required" : [ "data" ],
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/User"
+            }
+          }
+        }
+      },
+      "User" : {
+        "description" : "Not always all attributes of a user come with each response.",
+        "required" : [ "id", "name", "username", "picture_url", "verified", "is_investor", "is_pro", "is_private", "is_premium" ],
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "example" : 1
+          },
+          "name" : {
+            "type" : "string",
+            "example" : "John Doe"
+          },
+          "username" : {
+            "type" : "string",
+            "example" : "johndoe"
+          },
+          "picture_url" : {
+            "type" : "string",
+            "example" : "https://files.gab.ai/user/58390b25953cd.jpeg",
+            "format" : "url"
+          },
+          "picture_url_full" : {
+            "type" : "string",
+            "example" : "https://files.gab.ai/user/58390b25953cd.jpeg",
+            "format" : "url"
+          },
+          "cover_url" : {
+            "type" : "string",
+            "example" : "https://files.gab.ai/user/58390b25953cd.jpeg",
+            "format" : "url"
+          },
+          "verified" : {
+            "type" : "boolean",
+            "example" : true
+          },
+          "is_investor" : {
+            "type" : "boolean",
+            "example" : true
+          },
+          "is_pro" : {
+            "type" : "boolean",
+            "example" : true
+          },
+          "is_private" : {
+            "type" : "boolean",
+            "example" : true
+          },
+          "is_accessible" : {
+            "type" : "boolean",
+            "example" : false
+          },
+          "is_premium" : {
+            "type" : "boolean",
+            "example" : true
+          },
+          "follower_count" : {
+            "type" : "integer",
+            "example" : 100
+          },
+          "following_count" : {
+            "type" : "integer",
+            "example" : 100
+          },
+          "post_count" : {
+            "type" : "integer",
+            "example" : 100
+          },
+          "following" : {
+            "type" : "boolean",
+            "example" : true
+          },
+          "followed" : {
+            "type" : "boolean",
+            "example" : true
+          },
+          "follow_pending" : {
+            "type" : "boolean",
+            "example" : true
+          },
+          "subscribing" : {
+            "type" : "boolean",
+            "example" : true
+          },
+          "is_tippable" : {
+            "type" : "boolean",
+            "example" : true
+          },
+          "premium_price" : {
+            "type" : "number",
+            "example" : "1.5 or null"
+          },
+          "bio" : {
+            "type" : "string",
+            "example" : "Just another simple man who can speak freely"
+          },
+          "score" : {
+            "type" : "integer",
+            "example" : 150
+          },
+          "video_count" : {
+            "type" : "integer",
+            "example" : 3
+          }
+        },
+        "type" : "object"
+      }
+    }
+  }
+}
