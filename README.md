@@ -7,4 +7,6 @@ The links on the two shields above don't work yet. This a work in progress.
 
 The API is registered at [app.swaggerhub.com/apis/Gab.ai/Gab.ai](https://app.swaggerhub.com/apis/Gab.ai/Gab.ai/). Developer access is currently limited and by invitation only, but if you ask [@a](https://gab.ai/a) or [@e](https://gab.ai/e) nicely, they may let you in.
 
-The JSON for the API is stored in this repo at [Gab.ai_Gab.ai_1.0.0-oas3_swagger.json](Gab.ai_Gab.ai_1.0.0-oas3_swagger.json). The swecification for the Swagger JSON format is at [swagger.io/specification](https://swagger.io/specification/).
+The JSON defining the Gab API is stored in this repo at [Gab.ai_Gab.ai_1.0.0-oas3_swagger.json](Gab.ai_Gab.ai_1.0.0-oas3_swagger.json). The specification for the Swagger JSON format is at [swagger.io/specification](https://swagger.io/specification/).
+
+I found a JSON Schema definition for the OAS3 [here](https://github.com/googleapis/gnostic/blob/master/OpenAPIv3/openapi-3.0.json). It's in [openapi-3.0.json](openapi-3.0.json).
