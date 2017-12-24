@@ -12,26 +12,37 @@
 
 module Main exposing (..)
 
+import Char
 import Dict exposing (Dict)
 import Gab
 import Html
     exposing
         ( Attribute
         , Html
+        , a
         , button
         , div
         , h2
+        , img
         , option
         , p
         , pre
         , select
+        , span
         , text
         )
 import Html.Attributes
     exposing
-        ( selected
+        ( alt
+        , height
+        , href
+        , selected
+        , src
         , style
+        , target
+        , title
         , value
+        , width
         )
 import Html.Events exposing (onClick, onInput)
 import Http
@@ -55,6 +66,7 @@ import OAuthMiddleware.EncodeDecode
         ( authorizationEncoder
         , responseTokenEncoder
         )
+import String
 
 
 type alias Model =
@@ -279,27 +291,112 @@ view model =
     div
         [ style [ ( "margin-left", "3em" ) ]
         ]
-        [ h2 [] [ text "OAuthMiddleware Example" ]
-        , p []
-            [ button [ onClick Login ]
-                [ text "Login" ]
-            ]
-        , if model.token == Nothing then
-            text ""
-          else
-            p []
-                [ button [ onClick GetMe ]
-                    [ text "Get logged-in user profile" ]
+        [ div []
+            [ h2 [] [ text "OAuthMiddleware Example" ]
+            , p []
+                [ button [ onClick Login ]
+                    [ text "Login" ]
                 ]
-        , pre []
-            [ case ( model.msg, model.reply ) of
-                ( Just msg, _ ) ->
-                    text <| toString msg
+            , if model.token == Nothing then
+                text ""
+              else
+                p []
+                    [ button [ onClick GetMe ]
+                        [ text "Get logged-in user profile" ]
+                    ]
+            , pre []
+                [ case ( model.msg, model.reply ) of
+                    ( Just msg, _ ) ->
+                        text <| toString msg
 
-                ( _, Just reply ) ->
-                    text <| model.replyType ++ ":\n" ++ JE.encode 2 reply
+                    ( _, Just reply ) ->
+                        text <| model.replyType ++ ":\n" ++ JE.encode 2 reply
 
-                _ ->
-                    text "Nothing to report"
+                    _ ->
+                        text "Nothing to report"
+                ]
             ]
+        , footerDiv model
+        ]
+
+
+br : Html a
+br =
+    Html.br [] []
+
+
+sqrimg : String -> String -> Int -> Html Msg
+sqrimg url name size =
+    img
+        [ src url
+        , title name
+        , alt name
+        , width size
+        , height size
+        ]
+        []
+
+
+logoLink : String -> String -> String -> Int -> Html Msg
+logoLink url img name size =
+    a [ href url ]
+        [ sqrimg ("images/" ++ img) name size ]
+
+
+mailLink : String -> Html Msg
+mailLink email =
+    span []
+        [ text "<"
+        , a [ href ("mailto:" ++ email) ]
+            [ text email ]
+        , text ">"
+        ]
+
+
+stringFromCode : Int -> String
+stringFromCode code =
+    String.fromList [ Char.fromCode code ]
+
+
+nbsp : String
+nbsp =
+    -- \u00A0
+    stringFromCode 160
+
+
+copyright : String
+copyright =
+    -- \u00A9
+    stringFromCode 169
+
+
+checkmark : String
+checkmark =
+    -- \u2714
+    stringFromCode 10004
+
+
+space : Html Msg
+space =
+    text " "
+
+
+footerDiv : Model -> Html Msg
+footerDiv model =
+    div []
+        [ text (copyright ++ " 2017 ")
+        , a [ href "https://lisplog.org/" ]
+            [ text "Bill St. Clair" ]
+        , space
+        , mailLink "billstclair@gmail.com"
+        , br
+        , logoLink "https://github.com/billstclair/elm-gab-api"
+            "GitHub-Mark-32px.png"
+            "GitHub source code"
+            32
+        , space
+        , logoLink "http://elm-lang.org/"
+            "elm-logo-125x125.png"
+            "Elm inside"
+            28
         ]
