@@ -292,7 +292,7 @@ view model =
         [ style [ ( "margin-left", "3em" ) ]
         ]
         [ div []
-            [ h2 [] [ text "OAuthMiddleware Example" ]
+            [ h2 [] [ text "Gab API Example" ]
             , p []
                 [ button [ onClick Login ]
                     [ text "Login" ]
