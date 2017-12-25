@@ -15,6 +15,7 @@ module Main exposing (..)
 import Char
 import Dict exposing (Dict)
 import Gab
+import Gab.EncodeDecode as ED
 import Html
     exposing
         ( Attribute
@@ -69,12 +70,17 @@ import OAuthMiddleware.EncodeDecode
 import String
 
 
+type Thing
+    = UserThing Value
+
+
 type alias Model =
     { authorization : Maybe Authorization
     , token : Maybe ResponseToken
     , state : Maybe String
     , msg : Maybe String
     , replyType : String
+    , replyThing : Thing
     , reply : Maybe Value
     , redirectBackUri : String
     , authorization : Maybe Authorization
@@ -155,6 +161,7 @@ init location =
     , state = state
     , msg = msg
     , replyType = "Token"
+    , replyThing = UserThing JE.null
     , reply =
         case token of
             Nothing ->
@@ -251,6 +258,7 @@ update msg model =
                         { model
                             | authorization = Just authorization
                             , replyType = replyType
+                            , replyThing = UserThing JE.null
                             , reply = reply
                         }
                         ! []
@@ -281,9 +289,22 @@ update msg model =
                     { model
                         | replyType = "API Response"
                         , reply = Just reply
+                        , replyThing = UserThing reply
                         , msg = Nothing
                     }
                         ! []
+
+
+decodeEncode : Thing -> Value
+decodeEncode thing =
+    case thing of
+        UserThing value ->
+            case JD.decodeValue ED.userDecoder value of
+                Err msg ->
+                    JE.string msg
+
+                Ok user ->
+                    ED.userEncoder user
 
 
 view : Model -> Html Msg
@@ -310,7 +331,12 @@ view model =
                         text <| toString msg
 
                     ( _, Just reply ) ->
-                        text <| model.replyType ++ ":\n" ++ JE.encode 2 reply
+                        text <|
+                            model.replyType
+                                ++ ":\n"
+                                ++ JE.encode 2 reply
+                                ++ "\n\nDecoded and re-encoded:\n"
+                                ++ JE.encode 2 (decodeEncode model.replyThing)
 
                     _ ->
                         text "Nothing to report"

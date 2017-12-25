@@ -32,7 +32,7 @@ userDecoder =
         |> required "username" string
         |> required "picture_url" string
         |> required "verified" bool
-        |> optional "is_investor" (maybe bool) Nothing
+        |> optional "is_investor" bool False
         |> required "is_pro" bool
         |> required "is_private" bool
         |> required "is_premium" bool
@@ -41,40 +41,40 @@ userDecoder =
         |> optional "following_count" (maybe int) Nothing
         |> optional "post_count" (maybe int) Nothing
         |> optional "picture_url_full" (maybe string) Nothing
-        |> optional "following" (maybe bool) Nothing
-        |> optional "followed" (maybe bool) Nothing
-        |> optional "is_donor" (maybe bool) Nothing
-        |> optional "is_tippable" (maybe bool) Nothing
+        |> optional "following" bool False
+        |> optional "followed" bool False
+        |> optional "is_donor" bool False
+        |> optional "is_tippable" bool False
         |> optional "premium_price" (maybe string) Nothing
-        |> optional "is_accessible" (maybe bool) Nothing
-        |> optional "follow_pending" (maybe bool) Nothing
+        |> optional "is_accessible" bool False
+        |> optional "follow_pending" bool False
         |> optional "unread_notification_count" (maybe int) Nothing
-        |> optional "stream" (maybe bool) Nothing
+        |> optional "stream" bool False
         |> optional "bio" (maybe string) Nothing
         |> optional "cover_url" (maybe string) Nothing
-        |> optional "show_replies" (maybe bool) Nothing
-        |> optional "sound_alerts" (maybe bool) Nothing
+        |> optional "show_replies" bool False
+        |> optional "sound_alerts" bool False
         |> optional "email" (maybe string) Nothing
-        |> optional "notify_followers" (maybe bool) Nothing
-        |> optional "notify_mentions" (maybe bool) Nothing
-        |> optional "notify_likes" (maybe bool) Nothing
-        |> optional "notify_reposts" (maybe bool) Nothing
+        |> optional "notify_followers" bool False
+        |> optional "notify_mentions" bool False
+        |> optional "notify_likes" bool False
+        |> optional "notify_reposts" bool False
         |> optional "score" (maybe int) Nothing
         |> optional "broadcast_channel" (maybe string) Nothing
-        |> optional "exclusive_features" (maybe bool) Nothing
-        |> optional "social_facebook" (maybe bool) Nothing
-        |> optional "social_twitter" (maybe bool) Nothing
-        |> optional "is_pro_overdue" (maybe bool) Nothing
+        |> optional "exclusive_features" bool False
+        |> optional "social_facebook" bool False
+        |> optional "social_twitter" bool False
+        |> optional "is_pro_overdue" bool False
         |> optional "pro_expires_at" (maybe string) Nothing
-        |> optional "has_chat" (maybe bool) Nothing
-        |> optional "has_chat_unread" (maybe bool) Nothing
-        |> optional "germany_law" (maybe bool) Nothing
+        |> optional "has_chat" bool False
+        |> optional "has_chat_unread" bool False
+        |> optional "germany_law" bool False
         |> optional "language" (maybe string) Nothing
         |> optional "pinned_post_id" (maybe string) Nothing
-        |> optional "nsfw_filter" (maybe bool) Nothing
-        |> optional "hide_premium_content" (maybe bool) Nothing
+        |> optional "nsfw_filter" bool False
+        |> optional "hide_premium_content" bool False
         |> optional "video_count" (maybe int) Nothing
-        |> optional "can_downvote" (maybe bool) Nothing
+        |> optional "can_downvote" bool False
 
 
 filterNulls : List ( String, Value ) -> List ( String, Value )
@@ -102,14 +102,12 @@ maybeString mx =
             JE.string x
 
 
-maybeBool : Maybe Bool -> Value
+maybeBool : Bool -> Value
 maybeBool mx =
-    case mx of
-        Nothing ->
-            JE.null
-
-        Just x ->
-            JE.bool x
+    if mx then
+        JE.bool True
+    else
+        JE.null
 
 
 {-| Encode a User
@@ -123,7 +121,7 @@ userEncoder user =
             , ( "username", JE.string user.username )
             , ( "picture_url", JE.string user.picture_url )
             , ( "verified", JE.bool user.verified )
-            , ( "is_investor", maybeBool user.is_investor )
+            , ( "is_investor", JE.bool user.is_investor )
             , ( "is_pro", JE.bool user.is_pro )
             , ( "is_private", JE.bool user.is_private )
             , ( "is_premium", JE.bool user.is_premium )
