@@ -10,13 +10,24 @@
 ----------------------------------------------------------------------
 
 
-module Gab exposing (gabApiUri, get, meWithDecoder, request)
+module Gab
+    exposing
+        ( bodyToString
+        , gabApiUri
+        , getParts
+        , me
+        , meParts
+        , request
+        , requestParts
+        , userProfile
+        , userProfileParts
+        )
 
 import Gab.EncodeDecode as ED
-import Gab.Types exposing (User)
+import Gab.Types exposing (HttpBody(..), RequestParts, User)
 import Http
 import Json.Decode as JD exposing (Decoder)
-import Json.Encode exposing (Value)
+import Json.Encode as JE exposing (Value)
 import OAuth exposing (Token)
 
 
@@ -42,16 +53,62 @@ gabApiUri =
 `decoder` is a JSON decoder for the result.
 
 -}
-request : String -> List Http.Header -> Http.Body -> Decoder a -> Token -> String -> Http.Request a
-request method headers body decoder token path =
+requestParts : String -> List Http.Header -> HttpBody -> Decoder a -> Token -> String -> RequestParts a
+requestParts method headers body decoder token path =
+    { method = method
+    , headers = OAuth.use token headers
+    , url = gabApiUri ++ path
+    , body = body
+    , expect = Http.expectJson decoder
+    , timeout = Nothing
+    , withCredentials = False
+    }
+
+
+{-| Debugging function for displaying a request body.
+-}
+bodyToString : Int -> HttpBody -> String
+bodyToString indent body =
+    case body of
+        EmptyBody ->
+            ""
+
+        JsonBody value ->
+            JE.encode indent value
+
+        StringBody mimetype string ->
+            mimetype ++ ": " ++ string
+
+        OtherBody _ ->
+            "<opaque>"
+
+
+realizeBody : HttpBody -> Http.Body
+realizeBody body =
+    case body of
+        EmptyBody ->
+            Http.emptyBody
+
+        JsonBody value ->
+            Http.jsonBody value
+
+        StringBody mimetype string ->
+            Http.stringBody mimetype string
+
+        OtherBody body ->
+            body
+
+
+request : RequestParts a -> Http.Request a
+request parts =
     Http.request
-        { method = method
-        , headers = OAuth.use token headers
-        , url = gabApiUri ++ path
-        , body = body
-        , expect = Http.expectJson decoder
-        , timeout = Nothing
-        , withCredentials = False
+        { method = parts.method
+        , headers = parts.headers
+        , url = parts.url
+        , body = realizeBody parts.body
+        , expect = parts.expect
+        , timeout = parts.timeout
+        , withCredentials = parts.withCredentials
         }
 
 
@@ -60,20 +117,36 @@ request method headers body decoder token path =
     get token path decoder
 
 -}
-get : Decoder a -> Token -> String -> Http.Request a
-get =
-    request "GET" [] Http.emptyBody
+getParts : Decoder a -> Token -> String -> RequestParts a
+getParts =
+    requestParts "GET" [] EmptyBody
 
 
 {-| Return the logged-in user's profile information as a User record.
 -}
 me : Token -> Http.Request User
-me =
-    meWithDecoder ED.userDecoder
+me token =
+    meParts ED.userDecoder token
+        |> request
 
 
 {-| Return the logged-in user's profile information, using a custom decoder.
 -}
-meWithDecoder : Decoder a -> Token -> Http.Request a
-meWithDecoder decoder token =
-    get decoder token "me"
+meParts : Decoder a -> Token -> RequestParts a
+meParts decoder token =
+    getParts decoder token "me"
+
+
+{-| Return the logged-in user's profile information as a User record.
+-}
+userProfile : Token -> String -> Http.Request User
+userProfile token username =
+    userProfileParts ED.userDecoder token username
+        |> request
+
+
+{-| Return the logged-in user's profile information, using a custom decoder.
+-}
+userProfileParts : Decoder a -> Token -> String -> RequestParts a
+userProfileParts decoder token username =
+    getParts decoder token <| "users/" ++ username

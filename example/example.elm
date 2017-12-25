@@ -16,6 +16,7 @@ import Char
 import Dict exposing (Dict)
 import Gab
 import Gab.EncodeDecode as ED
+import Gab.Types exposing (RequestParts)
 import Html
     exposing
         ( Attribute
@@ -25,31 +26,39 @@ import Html
         , div
         , h2
         , img
+        , input
         , option
         , p
         , pre
         , select
         , span
+        , table
+        , td
         , text
+        , tr
         )
 import Html.Attributes
     exposing
         ( alt
+        , checked
         , height
         , href
         , selected
+        , size
         , src
         , style
         , target
         , title
+        , type_
         , value
         , width
         )
 import Html.Events exposing (onClick, onInput)
 import Http
-import Json.Decode as JD exposing (Decoder)
-import Json.Encode as JE exposing (Value)
+import Json.Decode as JD exposing (Decoder, Value)
+import Json.Encode as JE
 import Navigation exposing (Location)
+import OAuth exposing (Token(..))
 import OAuthMiddleware
     exposing
         ( Authorization
@@ -68,6 +77,7 @@ import OAuthMiddleware.EncodeDecode
         , responseTokenEncoder
         )
 import String
+import String.Extra as SE
 
 
 type Thing
@@ -79,12 +89,15 @@ type alias Model =
     , token : Maybe ResponseToken
     , state : Maybe String
     , msg : Maybe String
+    , request : Maybe (RequestParts JD.Value)
     , replyType : String
     , replyThing : Thing
     , reply : Maybe Value
     , redirectBackUri : String
     , authorization : Maybe Authorization
     , tokenAuthorization : Maybe TokenAuthorization
+    , prettify : Bool
+    , username : String
     }
 
 
@@ -93,7 +106,10 @@ type Msg
     | ReceiveAuthorization (Result Http.Error Authorization)
     | Login
     | GetMe
+    | GetUserProfile
     | ReceiveUser (Result Http.Error Value)
+    | SetUsername String
+    | TogglePrettify
 
 
 {-| GitHub requires the "User-Agent" header.
@@ -160,6 +176,7 @@ init location =
     { token = token
     , state = state
     , msg = msg
+    , request = Nothing
     , replyType = "Token"
     , replyThing = UserThing JE.null
     , reply =
@@ -172,6 +189,8 @@ init location =
     , redirectBackUri = Debug.log "redirectBackUri" <| locationToRedirectBackUri location
     , authorization = Nothing
     , tokenAuthorization = Nothing
+    , prettify = True
+    , username = ""
     }
         ! [ Http.send ReceiveAuthorization <|
                 getAuthorization False "authorization.json"
@@ -179,8 +198,8 @@ init location =
           ]
 
 
-getMe : Model -> ( Model, Cmd Msg )
-getMe model =
+get : Model -> (OAuth.Token -> RequestParts Value) -> ( Model, Cmd Msg )
+get model makeRequest =
     case model.token of
         Nothing ->
             { model
@@ -193,13 +212,24 @@ getMe model =
                 Just auth ->
                     let
                         req =
-                            Gab.meWithDecoder JD.value token.token
+                            makeRequest token.token
                     in
-                    model ! [ Http.send ReceiveUser req ]
+                    { model | request = Just req }
+                        ! [ Http.send ReceiveUser <| Gab.request req ]
 
                 _ ->
                     { model | msg = Just "No authorization loaded." }
                         ! []
+
+
+getMe : Model -> ( Model, Cmd Msg )
+getMe model =
+    get model <| \token -> Gab.meParts JD.value token
+
+
+getUserProfile : Model -> String -> ( Model, Cmd Msg )
+getUserProfile model username =
+    get model <| \token -> Gab.userProfileParts JD.value token username
 
 
 lookupProvider : Model -> Model
@@ -228,6 +258,12 @@ lookupProvider model =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        SetUsername username ->
+            { model | username = username } ! []
+
+        TogglePrettify ->
+            { model | prettify = not model.prettify } ! []
+
         ReceiveLocation _ ->
             model ! []
 
@@ -257,6 +293,7 @@ update msg model =
                     lookupProvider
                         { model
                             | authorization = Just authorization
+                            , request = Nothing
                             , replyType = replyType
                             , replyThing = UserThing JE.null
                             , reply = reply
@@ -275,6 +312,9 @@ update msg model =
 
         GetMe ->
             getMe model
+
+        GetUserProfile ->
+            getUserProfile model model.username
 
         ReceiveUser result ->
             case result of
@@ -327,21 +367,72 @@ view model =
                 text ""
               else
                 p []
-                    [ button [ onClick GetMe ]
-                        [ text "Get logged-in user profile" ]
+                    [ p [] [ b [ text "User Information" ] ]
+                    , table []
+                        [ tr []
+                            [ td [] [ b [ text "Logged-in User:" ] ]
+                            , td []
+                                [ button [ onClick GetMe ]
+                                    [ text "Get Profile" ]
+                                ]
+                            ]
+                        , tr []
+                            [ td []
+                                [ b [ text "Username: " ]
+                                , input
+                                    [ size 20
+                                    , onInput SetUsername
+                                    , value model.username
+                                    ]
+                                    []
+                                ]
+                            , td []
+                                [ button [ onClick GetUserProfile ]
+                                    [ text "Get Profile" ]
+                                ]
+                            ]
+                        ]
+                    , p []
+                        [ input
+                            [ type_ "checkbox"
+                            , onClick TogglePrettify
+                            , checked model.prettify
+                            ]
+                            []
+                        , b [ text " Prettify" ]
+                        ]
                     ]
+            , case model.request of
+                Nothing ->
+                    text ""
+
+                Just req ->
+                    pre []
+                        [ text <|
+                            "Request:\n"
+                                ++ req.method
+                                ++ " "
+                                ++ req.url
+                                ++ "\n"
+                                ++ "\n"
+                                ++ Gab.bodyToString 2 req.body
+                        ]
             , pre []
                 [ case ( model.msg, model.reply ) of
                     ( Just msg, _ ) ->
-                        text <| toString msg
+                        text <|
+                            "Error:\n"
+                                ++ (SE.softWrap 60 <| toString msg)
 
                     ( _, Just reply ) ->
                         text <|
                             model.replyType
                                 ++ ":\n"
-                                ++ JE.encode 2 reply
+                                ++ encodeWrap model.prettify reply
                                 ++ "\n\nDecoded and re-encoded:\n"
-                                ++ JE.encode 2 (decodeEncode model.replyThing)
+                                ++ encodeWrap
+                                    model.prettify
+                                    (decodeEncode model.replyThing)
 
                     _ ->
                         text "Nothing to report"
@@ -349,6 +440,67 @@ view model =
             ]
         , footerDiv model
         ]
+
+
+convertJsonNewlines : String -> String
+convertJsonNewlines json =
+    SE.replace "\\r" "" json
+        |> SE.replace "\\n" "\n"
+
+
+wrapJsonLine : Int -> String -> List String
+wrapJsonLine width line =
+    let
+        body =
+            String.trimLeft line
+
+        indentN =
+            String.length line - String.length body + 2
+
+        initialIndent =
+            String.repeat (indentN - 2) " "
+
+        indent =
+            String.repeat indentN " "
+
+        wrapped =
+            convertJsonNewlines body
+                |> String.split "\n"
+                |> List.map (SE.softWrap <| max 20 (width - indentN))
+                |> String.join "\n"
+
+        lines =
+            String.split "\n" wrapped
+    in
+    case lines of
+        [] ->
+            []
+
+        first :: rest ->
+            (initialIndent ++ first)
+                :: List.map ((++) indent) rest
+
+
+wrapJsonLines : Int -> String -> String
+wrapJsonLines width string =
+    String.split "\n" string
+        |> List.concatMap (wrapJsonLine width)
+        |> String.join "\n"
+
+
+encodeWrap : Bool -> Value -> String
+encodeWrap prettify value =
+    JE.encode 2 value
+        |> (if prettify then
+                wrapJsonLines 80
+            else
+                identity
+           )
+
+
+b : List (Html a) -> Html a
+b body =
+    Html.b [] body
 
 
 br : Html a

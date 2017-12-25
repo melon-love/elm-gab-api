@@ -10,7 +10,33 @@
 ----------------------------------------------------------------------
 
 
-module Gab.Types exposing (User)
+module Gab.Types exposing (HttpBody(..), RequestParts, User)
+
+import Http
+import Json.Encode exposing (Value)
+import Time exposing (Time)
+
+
+{-| A union type for request bodies
+-}
+type HttpBody
+    = EmptyBody
+    | JsonBody Value
+    | StringBody String String
+    | OtherBody Http.Body
+
+
+{-| A non-opaque representation of an Http.Request
+-}
+type alias RequestParts a =
+    { method : String
+    , headers : List Http.Header
+    , url : String
+    , body : HttpBody
+    , expect : Http.Expect a
+    , timeout : Maybe Time
+    , withCredentials : Bool
+    }
 
 
 type alias User =
