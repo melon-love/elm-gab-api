@@ -19,6 +19,10 @@ module Gab
         , meParts
         , request
         , requestParts
+        , userFollowers
+        , userFollowersParts
+        , userFollowing
+        , userFollowingParts
         , userProfile
         , userProfileParts
         )
@@ -150,3 +154,53 @@ userProfile token username =
 userProfileParts : Decoder a -> Token -> String -> RequestParts a
 userProfileParts decoder token username =
     getParts decoder token <| "users/" ++ username
+
+
+{-| Return the logged-in user's profile information as a User record.
+-}
+userFollowers : Token -> String -> Int -> Http.Request User
+userFollowers token username before =
+    userFollowersParts ED.userDecoder token username before
+        |> request
+
+
+{-| Return the logged-in user's profile information, using a custom decoder.
+-}
+userFollowersParts : Decoder a -> Token -> String -> Int -> RequestParts a
+userFollowersParts decoder token username before =
+    let
+        prefix =
+            "users/" ++ username ++ "/followers"
+
+        path =
+            if before <= 0 then
+                prefix
+            else
+                prefix ++ "?before=" ++ toString before
+    in
+    getParts decoder token path
+
+
+{-| Return the logged-in user's profile information as a User record.
+-}
+userFollowing : Token -> String -> Int -> Http.Request User
+userFollowing token username before =
+    userFollowingParts ED.userDecoder token username before
+        |> request
+
+
+{-| Return the logged-in user's profile information, using a custom decoder.
+-}
+userFollowingParts : Decoder a -> Token -> String -> Int -> RequestParts a
+userFollowingParts decoder token username before =
+    let
+        prefix =
+            "users/" ++ username ++ "/following"
+
+        path =
+            if before <= 0 then
+                prefix
+            else
+                prefix ++ "?before=" ++ toString before
+    in
+    getParts decoder token path

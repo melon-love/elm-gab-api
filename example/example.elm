@@ -98,6 +98,7 @@ type alias Model =
     , tokenAuthorization : Maybe TokenAuthorization
     , prettify : Bool
     , username : String
+    , userBefore : Int
     }
 
 
@@ -107,8 +108,11 @@ type Msg
     | Login
     | GetMe
     | GetUserProfile
+    | GetUserFollowers
+    | GetUserFollowing
     | ReceiveUser (Result Http.Error Value)
     | SetUsername String
+    | SetUserBefore String
     | TogglePrettify
 
 
@@ -191,6 +195,7 @@ init location =
     , tokenAuthorization = Nothing
     , prettify = True
     , username = ""
+    , userBefore = 0
     }
         ! [ Http.send ReceiveAuthorization <|
                 getAuthorization False "authorization.json"
@@ -232,6 +237,16 @@ getUserProfile model username =
     get model <| \token -> Gab.userProfileParts JD.value token username
 
 
+getUserFollowers : Model -> String -> Int -> ( Model, Cmd Msg )
+getUserFollowers model username before =
+    get model <| \token -> Gab.userFollowersParts JD.value token username before
+
+
+getUserFollowing : Model -> String -> Int -> ( Model, Cmd Msg )
+getUserFollowing model username before =
+    get model <| \token -> Gab.userFollowingParts JD.value token username before
+
+
 lookupProvider : Model -> Model
 lookupProvider model =
     case model.authorization of
@@ -260,6 +275,14 @@ update msg model =
     case msg of
         SetUsername username ->
             { model | username = username } ! []
+
+        SetUserBefore before ->
+            case String.toInt before of
+                Err _ ->
+                    model ! []
+
+                Ok a ->
+                    { model | userBefore = a } ! []
 
         TogglePrettify ->
             { model | prettify = not model.prettify } ! []
@@ -315,6 +338,12 @@ update msg model =
 
         GetUserProfile ->
             getUserProfile model model.username
+
+        GetUserFollowers ->
+            getUserFollowers model model.username model.userBefore
+
+        GetUserFollowing ->
+            getUserFollowing model model.username model.userBefore
 
         ReceiveUser result ->
             case result of
@@ -391,6 +420,25 @@ view model =
                                     [ text "Get Profile" ]
                                 ]
                             ]
+                        , tr []
+                            [ td []
+                                [ b [ text <| nbsp ++ nbsp ++ "before: " ]
+                                , input
+                                    [ size 3
+                                    , onInput SetUserBefore
+                                    , value <| toString model.userBefore
+                                    ]
+                                    []
+                                ]
+                            , td []
+                                [ text <| nbsp ++ nbsp
+                                , button [ onClick GetUserFollowers ]
+                                    [ text "Followers" ]
+                                , text " "
+                                , button [ onClick GetUserFollowing ]
+                                    [ text "Following" ]
+                                ]
+                            ]
                         ]
                     , p []
                         [ input
@@ -400,6 +448,7 @@ view model =
                             ]
                             []
                         , b [ text " Prettify" ]
+                        , text " (easier to read, may no longer be valid JSON)"
                         ]
                     ]
             , case model.request of
