@@ -10,8 +10,10 @@
 ----------------------------------------------------------------------
 
 
-module Gab exposing (gabApiUri, get, me, request)
+module Gab exposing (gabApiUri, get, meWithDecoder, request)
 
+import Gab.EncodeDecode as ED
+import Gab.Types exposing (User)
 import Http
 import Json.Decode as JD exposing (Decoder)
 import Json.Encode exposing (Value)
@@ -40,8 +42,8 @@ gabApiUri =
 `decoder` is a JSON decoder for the result.
 
 -}
-request : String -> List Http.Header -> Http.Body -> Token -> String -> Decoder a -> Http.Request a
-request method headers body token path decoder =
+request : String -> List Http.Header -> Http.Body -> Decoder a -> Token -> String -> Http.Request a
+request method headers body decoder token path =
     Http.request
         { method = method
         , headers = OAuth.use token headers
@@ -58,16 +60,20 @@ request method headers body token path decoder =
     get token path decoder
 
 -}
-get : Token -> String -> Decoder a -> Http.Request a
+get : Decoder a -> Token -> String -> Http.Request a
 get =
     request "GET" [] Http.emptyBody
 
 
-{-| Return the logged-in user's profile information.
-
-Currently not decoded, just a raw `Value`.
-
+{-| Return the logged-in user's profile information as a User record.
 -}
-me : Token -> Http.Request Value
-me token =
-    get token "me" JD.value
+me : Token -> Http.Request User
+me =
+    meWithDecoder ED.userDecoder
+
+
+{-| Return the logged-in user's profile information, using a custom decoder.
+-}
+meWithDecoder : Decoder a -> Token -> Http.Request a
+meWithDecoder decoder token =
+    get decoder token "me"

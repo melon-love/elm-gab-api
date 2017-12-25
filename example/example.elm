@@ -47,7 +47,7 @@ import Html.Attributes
         )
 import Html.Events exposing (onClick, onInput)
 import Http
-import Json.Decode as JD
+import Json.Decode as JD exposing (Decoder)
 import Json.Encode as JE exposing (Value)
 import Navigation exposing (Location)
 import OAuthMiddleware
@@ -193,7 +193,7 @@ getMe model =
                 Just auth ->
                     let
                         req =
-                            Gab.me token.token
+                            Gab.meWithDecoder JD.value token.token
                     in
                     model ! [ Http.send ReceiveUser req ]
 
@@ -295,16 +295,21 @@ update msg model =
                         ! []
 
 
+doDecodeEncode : Decoder a -> (a -> Value) -> Value -> Value
+doDecodeEncode decoder encoder value =
+    case JD.decodeValue decoder value of
+        Err msg ->
+            JE.string msg
+
+        Ok thing ->
+            encoder thing
+
+
 decodeEncode : Thing -> Value
 decodeEncode thing =
     case thing of
         UserThing value ->
-            case JD.decodeValue ED.userDecoder value of
-                Err msg ->
-                    JE.string msg
-
-                Ok user ->
-                    ED.userEncoder user
+            doDecodeEncode ED.userDecoder ED.userEncoder value
 
 
 view : Model -> Html Msg
