@@ -17,6 +17,8 @@ module Gab
         , getParts
         , me
         , meParts
+        , popularFeed
+        , popularFeedParts
         , request
         , requestParts
         , userFollowers
@@ -27,8 +29,9 @@ module Gab
         , userProfileParts
         )
 
+import Erl.Query
 import Gab.EncodeDecode as ED
-import Gab.Types exposing (HttpBody(..), RequestParts, User)
+import Gab.Types exposing (HttpBody(..), PostList, RequestParts, User, UserList)
 import Http
 import Json.Decode as JD exposing (Decoder)
 import Json.Encode as JE exposing (Value)
@@ -156,51 +159,120 @@ userProfileParts decoder token username =
     getParts decoder token <| "users/" ++ username
 
 
-{-| Return the logged-in user's profile information as a User record.
+{-| Shared by userFollowersParts & userFollowingParts
 -}
-userFollowers : Token -> String -> Int -> Http.Request User
+userXxxParts : String -> Decoder a -> Token -> String -> Int -> RequestParts a
+userXxxParts xxx decoder token username before =
+    let
+        prefix =
+            "users/" ++ username ++ xxx
+
+        path =
+            if before <= 0 then
+                prefix
+            else
+                prefix ++ "?before=" ++ toString before
+    in
+    getParts decoder token path
+
+
+{-| Return the logged-in user's followers as a UserList record.
+
+    userFollowers token username before
+
+`before` is the number of following users to skip before the listing starts. This enables scrolling through a long list.
+
+-}
+userFollowers : Token -> String -> Int -> Http.Request UserList
 userFollowers token username before =
-    userFollowersParts ED.userDecoder token username before
+    userFollowersParts ED.userListDecoder token username before
         |> request
 
 
-{-| Return the logged-in user's profile information, using a custom decoder.
+{-| Return the logged-in user's followers, using a custom decoder.
+
+    userFollowersParts decoder token username before
+
+`before` is the number of following users to skip before the listing starts. This enables scrolling through a long list.
+
 -}
 userFollowersParts : Decoder a -> Token -> String -> Int -> RequestParts a
-userFollowersParts decoder token username before =
-    let
-        prefix =
-            "users/" ++ username ++ "/followers"
-
-        path =
-            if before <= 0 then
-                prefix
-            else
-                prefix ++ "?before=" ++ toString before
-    in
-    getParts decoder token path
+userFollowersParts =
+    userXxxParts "/followers"
 
 
-{-| Return the logged-in user's profile information as a User record.
+{-| Return a list of users following the logged-in user, as a UserList record.
+
+    userFollowing token username before
+
+`before` is the number of followers to skip before the listing starts. This enables scrolling through a long list.
+
 -}
-userFollowing : Token -> String -> Int -> Http.Request User
+userFollowing : Token -> String -> Int -> Http.Request UserList
 userFollowing token username before =
-    userFollowingParts ED.userDecoder token username before
+    userFollowingParts ED.userListDecoder token username before
         |> request
 
 
-{-| Return the logged-in user's profile information, using a custom decoder.
+{-| Return a list of users following the logged-in user, using a custom decoder.
+
+    userFollowingParts decoder token username before
+
+`before` is the number of followers to skip before the listing starts. This enables scrolling through a long list.
+
 -}
 userFollowingParts : Decoder a -> Token -> String -> Int -> RequestParts a
-userFollowingParts decoder token username before =
+userFollowingParts =
+    userXxxParts "/following"
+
+
+{-| Shared by all the getters that take before and after dates.
+-}
+beforeAfterParts : String -> Decoder a -> Token -> String -> String -> RequestParts a
+beforeAfterParts xxx decoder token before after =
     let
         prefix =
-            "users/" ++ username ++ "/following"
+            xxx
+
+        query =
+            []
+                |> (if before == "" then
+                        identity
+                    else
+                        Erl.Query.add "before" before
+                   )
+                |> (if after == "" then
+                        identity
+                    else
+                        Erl.Query.add "after" after
+                   )
 
         path =
-            if before <= 0 then
-                prefix
-            else
-                prefix ++ "?before=" ++ toString before
+            prefix ++ Erl.Query.toString query
     in
     getParts decoder token path
+
+
+{-| Return the posts in the "popular" feed, as a PostList.
+
+    popularFeed token before after
+
+The posts returned will have dates between `before` and `after`. Pass the empty string for either to not limit that end.
+
+-}
+popularFeed : Token -> String -> String -> Http.Request PostList
+popularFeed token before after =
+    popularFeedParts ED.postListDecoder token before after
+        |> request
+
+
+{-| Return the posts in the "popular" feed, using a custom decoder.
+
+    popularFeedParts decoder token before after
+
+The posts returned will have dates between `before` and `after`. Pass the empty string for either to not limit that end.
+
+-}
+popularFeedParts : Decoder a -> Token -> String -> String -> RequestParts a
+popularFeedParts decoder token before after =
+    beforeAfterParts "popular/feed" decoder token before after

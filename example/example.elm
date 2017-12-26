@@ -82,6 +82,8 @@ import String.Extra as SE
 
 type Thing
     = UserThing Value
+    | UserListThing Value
+    | PostListThing Value
 
 
 type alias Model =
@@ -99,6 +101,8 @@ type alias Model =
     , prettify : Bool
     , username : String
     , userBefore : Int
+    , postBefore : String
+    , postAfter : String
     }
 
 
@@ -110,9 +114,14 @@ type Msg
     | GetUserProfile
     | GetUserFollowers
     | GetUserFollowing
+    | GetPopularFeed
     | ReceiveUser (Result Http.Error Value)
+    | ReceiveUserList (Result Http.Error Value)
+    | ReceivePostList (Result Http.Error Value)
     | SetUsername String
     | SetUserBefore String
+    | SetPostBefore String
+    | SetPostAfter String
     | TogglePrettify
 
 
@@ -194,8 +203,10 @@ init location =
     , authorization = Nothing
     , tokenAuthorization = Nothing
     , prettify = True
-    , username = ""
+    , username = "xossbow"
     , userBefore = 0
+    , postBefore = ""
+    , postAfter = ""
     }
         ! [ Http.send ReceiveAuthorization <|
                 getAuthorization False "authorization.json"
@@ -203,8 +214,8 @@ init location =
           ]
 
 
-get : Model -> (OAuth.Token -> RequestParts Value) -> ( Model, Cmd Msg )
-get model makeRequest =
+get : Model -> (Result Http.Error Value -> Msg) -> (OAuth.Token -> RequestParts Value) -> ( Model, Cmd Msg )
+get model receiver makeRequest =
     case model.token of
         Nothing ->
             { model
@@ -220,7 +231,7 @@ get model makeRequest =
                             makeRequest token.token
                     in
                     { model | request = Just req }
-                        ! [ Http.send ReceiveUser <| Gab.request req ]
+                        ! [ Http.send receiver <| Gab.request req ]
 
                 _ ->
                     { model | msg = Just "No authorization loaded." }
@@ -229,22 +240,32 @@ get model makeRequest =
 
 getMe : Model -> ( Model, Cmd Msg )
 getMe model =
-    get model <| \token -> Gab.meParts JD.value token
+    get model ReceiveUser <|
+        \token -> Gab.meParts JD.value token
 
 
 getUserProfile : Model -> String -> ( Model, Cmd Msg )
 getUserProfile model username =
-    get model <| \token -> Gab.userProfileParts JD.value token username
+    get model ReceiveUser <|
+        \token -> Gab.userProfileParts JD.value token username
 
 
 getUserFollowers : Model -> String -> Int -> ( Model, Cmd Msg )
 getUserFollowers model username before =
-    get model <| \token -> Gab.userFollowersParts JD.value token username before
+    get model ReceiveUserList <|
+        \token -> Gab.userFollowersParts JD.value token username before
 
 
 getUserFollowing : Model -> String -> Int -> ( Model, Cmd Msg )
 getUserFollowing model username before =
-    get model <| \token -> Gab.userFollowingParts JD.value token username before
+    get model ReceiveUserList <|
+        \token -> Gab.userFollowingParts JD.value token username before
+
+
+getPopularFeed : Model -> String -> String -> ( Model, Cmd Msg )
+getPopularFeed model before after =
+    get model ReceivePostList <|
+        \token -> Gab.popularFeedParts JD.value token before after
 
 
 lookupProvider : Model -> Model
@@ -279,10 +300,19 @@ update msg model =
         SetUserBefore before ->
             case String.toInt before of
                 Err _ ->
-                    model ! []
+                    if before == "" then
+                        { model | userBefore = 0 } ! []
+                    else
+                        model ! []
 
                 Ok a ->
                     { model | userBefore = a } ! []
+
+        SetPostBefore before ->
+            { model | postBefore = before } ! []
+
+        SetPostAfter after ->
+            { model | postAfter = after } ! []
 
         TogglePrettify ->
             { model | prettify = not model.prettify } ! []
@@ -345,23 +375,37 @@ update msg model =
         GetUserFollowing ->
             getUserFollowing model model.username model.userBefore
 
-        ReceiveUser result ->
-            case result of
-                Err err ->
-                    { model
-                        | reply = Nothing
-                        , msg = Just <| toString err
-                    }
-                        ! []
+        GetPopularFeed ->
+            getPopularFeed model model.postBefore model.postAfter
 
-                Ok reply ->
-                    { model
-                        | replyType = "API Response"
-                        , reply = Just reply
-                        , replyThing = UserThing reply
-                        , msg = Nothing
-                    }
-                        ! []
+        ReceiveUser result ->
+            receiveThing UserThing result model
+
+        ReceiveUserList result ->
+            receiveThing UserListThing result model
+
+        ReceivePostList result ->
+            receiveThing PostListThing result model
+
+
+receiveThing : (Value -> Thing) -> Result Http.Error Value -> Model -> ( Model, Cmd Msg )
+receiveThing thingTag result model =
+    case result of
+        Err err ->
+            { model
+                | reply = Nothing
+                , msg = Just <| toString err
+            }
+                ! []
+
+        Ok reply ->
+            { model
+                | replyType = "API Response"
+                , reply = Just reply
+                , replyThing = thingTag reply
+                , msg = Nothing
+            }
+                ! []
 
 
 doDecodeEncode : Decoder a -> (a -> Value) -> Value -> Value
@@ -379,6 +423,12 @@ decodeEncode thing =
     case thing of
         UserThing value ->
             doDecodeEncode ED.userDecoder ED.userEncoder value
+
+        UserListThing value ->
+            doDecodeEncode ED.userListDecoder ED.userListEncoder value
+
+        PostListThing value ->
+            doDecodeEncode ED.postListDecoder ED.postListEncoder value
 
 
 view : Model -> Html Msg
@@ -441,6 +491,38 @@ view model =
                             ]
                         ]
                     , p []
+                        [ p [] [ b [ text "Posts" ] ]
+                        , table []
+                            [ tr []
+                                [ td []
+                                    [ b [ text "Before: " ]
+                                    , input
+                                        [ size 20
+                                        , onInput SetPostBefore
+                                        , value model.postBefore
+                                        ]
+                                        []
+                                    ]
+                                , td [] [ text nbsp ]
+                                ]
+                            , tr []
+                                [ td []
+                                    [ b [ text " After: " ]
+                                    , input
+                                        [ size 20
+                                        , onInput SetPostAfter
+                                        , value model.postAfter
+                                        ]
+                                        []
+                                    ]
+                                , td []
+                                    [ button [ onClick GetPopularFeed ]
+                                        [ text "Popular Feed" ]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    , p []
                         [ input
                             [ type_ "checkbox"
                             , onClick TogglePrettify
@@ -456,36 +538,46 @@ view model =
                     text ""
 
                 Just req ->
-                    pre []
-                        [ text <|
-                            "Request:\n"
-                                ++ req.method
-                                ++ " "
-                                ++ req.url
-                                ++ "\n"
-                                ++ "\n"
-                                ++ Gab.bodyToString 2 req.body
+                    span []
+                        [ b [ text "Request:" ]
+                        , br
+                        , pre []
+                            [ text <|
+                                req.method
+                                    ++ " "
+                                    ++ req.url
+                                    ++ "\n"
+                                    ++ "\n"
+                                    ++ Gab.bodyToString 2 req.body
+                            ]
                         ]
-            , pre []
-                [ case ( model.msg, model.reply ) of
-                    ( Just msg, _ ) ->
-                        text <|
-                            "Error:\n"
-                                ++ (SE.softWrap 60 <| toString msg)
+            , case ( model.msg, model.reply ) of
+                ( Just msg, _ ) ->
+                    span []
+                        [ b [ text "Error:" ]
+                        , br
+                        , pre [] [ text <| SE.softWrap 60 <| toString msg ]
+                        ]
 
-                    ( _, Just reply ) ->
-                        text <|
-                            model.replyType
-                                ++ ":\n"
-                                ++ encodeWrap model.prettify reply
-                                ++ "\n\nDecoded and re-encoded:\n"
-                                ++ encodeWrap
+                ( _, Just reply ) ->
+                    span []
+                        [ b [ text <| model.replyType ++ ":" ]
+                        , pre []
+                            [ text <|
+                                encodeWrap model.prettify reply
+                            ]
+                        , br
+                        , b [ text "Decoded and re-encoded:" ]
+                        , pre []
+                            [ text <|
+                                encodeWrap
                                     model.prettify
                                     (decodeEncode model.replyThing)
+                            ]
+                        ]
 
-                    _ ->
-                        text "Nothing to report"
-                ]
+                _ ->
+                    b [ text "Nothing to report" ]
             ]
         , footerDiv model
         ]

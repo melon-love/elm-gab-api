@@ -12,11 +12,15 @@
 
 module Gab.EncodeDecode
     exposing
-        ( userDecoder
+        ( postListDecoder
+        , postListEncoder
+        , userDecoder
         , userEncoder
+        , userListDecoder
+        , userListEncoder
         )
 
-import Gab.Types exposing (User)
+import Gab.Types exposing (PostList, User, UserList)
 import Json.Decode as JD exposing (Decoder, bool, int, maybe, string)
 import Json.Decode.Pipeline as DP exposing (optional, required)
 import Json.Encode as JE exposing (Value)
@@ -165,3 +169,28 @@ userEncoder user =
             , ( "video_count", maybeInt user.video_count )
             , ( "can_downvote", maybeBool user.can_downvote )
             ]
+
+
+userListDecoder : Decoder UserList
+userListDecoder =
+    JD.map2 UserList
+        (JD.field "data" <| JD.list userDecoder)
+        (JD.field "no-more" JD.bool)
+
+
+userListEncoder : UserList -> Value
+userListEncoder userList =
+    JE.object
+        [ ( "data", JE.list <| List.map userEncoder userList.data )
+        , ( "no-more", JE.bool userList.no_more )
+        ]
+
+
+postListDecoder : Decoder PostList
+postListDecoder =
+    JD.value
+
+
+postListEncoder : PostList -> Value
+postListEncoder postList =
+    postList

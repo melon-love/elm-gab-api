@@ -10,7 +10,7 @@
 ----------------------------------------------------------------------
 
 
-module Gab.Types exposing (HttpBody(..), RequestParts, User)
+module Gab.Types exposing (HttpBody(..), PostList, RequestParts, User, UserList)
 
 import Http
 import Json.Encode exposing (Value)
@@ -91,3 +91,13 @@ type alias User =
     , video_count : Maybe Int
     , can_downvote : Bool
     }
+
+
+type alias UserList =
+    { data : List User
+    , no_more : Bool
+    }
+
+
+type alias PostList =
+    Value
