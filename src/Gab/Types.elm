@@ -10,7 +10,21 @@
 ----------------------------------------------------------------------
 
 
-module Gab.Types exposing (HttpBody(..), PostList, RequestParts, User, UserList)
+module Gab.Types
+    exposing
+        ( ActivityLog
+        , ActivityLogList
+        , Attachment(..)
+        , CategoryDetails
+        , Embed
+        , HttpBody(..)
+        , Post
+        , PostList
+        , RelatedPosts(..)
+        , RequestParts
+        , User
+        , UserList
+        )
 
 import Http
 import Json.Encode exposing (Value)
@@ -126,7 +140,7 @@ type alias Post =
     , is_quote : Bool
     , is_reply : Bool
     , is_replies_disabled : Bool
-    , embed : Embed
+    , embed : Maybe Embed
     , attachment : Attachment
     , category : Maybe Int
     , category_details : Maybe CategoryDetails
@@ -173,14 +187,27 @@ type alias CategoryDetails =
 
 
 type alias Embed =
-    Value
+    { html : String
+    , iframe : Bool
+    }
 
 
 {-| A list of Post.
-
-Maybe is actually a list of ActivityLog, but I haven't caught one in the wild yet.
-
 -}
 type alias PostList =
-    { data : List Post
+    List Post
+
+
+type alias ActivityLog =
+    { id : String
+    , published_at : String
+    , actuser : User
+    , post : Post
+    , type_ : String
+    }
+
+
+type alias ActivityLogList =
+    { data : List ActivityLog
+    , no_more : Bool
     }

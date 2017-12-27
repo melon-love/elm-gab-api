@@ -198,7 +198,7 @@ userListEncoder userList =
 
 postListDecoder : Decoder PostList
 postListDecoder =
-    JD.succeed { data = [] }
+    JD.succeed []
 
 
 postListEncoder : PostList -> Value

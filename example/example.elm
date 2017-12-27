@@ -81,7 +81,8 @@ import String.Extra as SE
 
 
 type Thing
-    = UserThing Value
+    = ValueThing Value
+    | UserThing Value
     | UserListThing Value
     | PostListThing Value
 
@@ -191,7 +192,12 @@ init location =
     , msg = msg
     , request = Nothing
     , replyType = "Token"
-    , replyThing = UserThing JE.null
+    , replyThing =
+        ValueThing <|
+            if token == Nothing then
+                JE.null
+            else
+                JE.string "Response Token"
     , reply =
         case token of
             Nothing ->
@@ -328,7 +334,7 @@ update msg model =
 
                 Ok authorization ->
                     let
-                        ( replyType, reply ) =
+                        ( replyType, reply, replyThing ) =
                             case ( model.token, model.msg ) of
                                 ( Nothing, Nothing ) ->
                                     ( "Authorization"
@@ -338,17 +344,21 @@ update msg model =
                                                 | clientId = "not telling"
                                                 , redirectUri = "don't ask"
                                             }
+                                    , ValueThing <| JE.string "Authorization"
                                     )
 
                                 _ ->
-                                    ( model.replyType, model.reply )
+                                    ( model.replyType
+                                    , model.reply
+                                    , model.replyThing
+                                    )
                     in
                     lookupProvider
                         { model
                             | authorization = Just authorization
                             , request = Nothing
                             , replyType = replyType
-                            , replyThing = UserThing JE.null
+                            , replyThing = replyThing
                             , reply = reply
                         }
                         ! []
@@ -421,6 +431,9 @@ doDecodeEncode decoder encoder value =
 decodeEncode : Thing -> Value
 decodeEncode thing =
     case thing of
+        ValueThing value ->
+            value
+
         UserThing value ->
             doDecodeEncode ED.userDecoder ED.userEncoder value
 
