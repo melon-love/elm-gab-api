@@ -60,7 +60,7 @@ type alias User =
     , followed : Bool
     , is_donor : Bool
     , is_tippable : Bool
-    , premium_price : Maybe String
+    , premium_price : Maybe Float
     , is_accessible : Bool
     , follow_pending : Bool
     , unread_notification_count : Maybe Int
@@ -99,5 +99,88 @@ type alias UserList =
     }
 
 
-type alias PostList =
+type RelatedPosts
+    = RelatedPosts
+        { parent : Maybe Post
+        , replies : PostList
+        }
+
+
+type alias Post =
+    { id : Int
+    , created_at : String
+    , revised_at : Maybe String
+    , edited : Bool
+    , body : String
+    , only_emoji : Bool
+    , liked : Bool
+    , disliked : Bool
+    , bookmarked : Bool
+    , repost : Bool
+    , reported : Bool
+    , score : Int
+    , like_count : Int
+    , dislike_count : Int
+    , reply_count : Int
+    , repost_count : Int
+    , is_quote : Bool
+    , is_reply : Bool
+    , is_replies_disabled : Bool
+    , embed : Embed
+    , attachment : Attachment
+    , category : Maybe Int
+    , category_details : Maybe CategoryDetails
+    , language : Maybe String
+    , nsfw : Bool
+    , is_premium : Bool
+    , is_locked : Bool
+    , user : User
+    , related : RelatedPosts
+    }
+
+
+type Attachment
+    = NoAttachment
+    | UrlAttachment
+        { image : String
+        , title : String
+        , description : String
+        , url : String
+        , source : String
+        }
+    | MediaAttachment
+        { id : String
+        , url_thumbnail : String
+        , url_full : String
+        , width : Int
+        , height : Int
+        }
+    | YoutubeAttachment { value : String }
+    | GiphyAttachment { value : String }
+      -- There may be types I haven't seen yet.
+    | UnknownAttachment
+        { type_ : String
+        , value : String
+        }
+
+
+type alias CategoryDetails =
+    { title : String
+    , slug : String
+    , value : Int
+    , emoji : String
+    }
+
+
+type alias Embed =
     Value
+
+
+{-| A list of Post.
+
+Maybe is actually a list of ActivityLog, but I haven't caught one in the wild yet.
+
+-}
+type alias PostList =
+    { data : List Post
+    }

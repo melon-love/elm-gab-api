@@ -21,7 +21,7 @@ module Gab.EncodeDecode
         )
 
 import Gab.Types exposing (PostList, User, UserList)
-import Json.Decode as JD exposing (Decoder, bool, int, maybe, string)
+import Json.Decode as JD exposing (Decoder, bool, float, int, maybe, string)
 import Json.Decode.Pipeline as DP exposing (optional, required)
 import Json.Encode as JE exposing (Value)
 
@@ -49,7 +49,7 @@ userDecoder =
         |> optional "followed" bool False
         |> optional "is_donor" bool False
         |> optional "is_tippable" bool False
-        |> optional "premium_price" (maybe string) Nothing
+        |> optional "premium_price" (maybe float) Nothing
         |> optional "is_accessible" bool False
         |> optional "follow_pending" bool False
         |> optional "unread_notification_count" (maybe int) Nothing
@@ -96,6 +96,16 @@ maybeInt mx =
             JE.int x
 
 
+maybeFloat : Maybe Float -> Value
+maybeFloat mx =
+    case mx of
+        Nothing ->
+            JE.null
+
+        Just x ->
+            JE.float x
+
+
 maybeString : Maybe String -> Value
 maybeString mx =
     case mx of
@@ -138,7 +148,7 @@ userEncoder user =
             , ( "followed", maybeBool user.followed )
             , ( "is_donor", maybeBool user.is_donor )
             , ( "is_tippable", maybeBool user.is_tippable )
-            , ( "premium_price", maybeString user.premium_price )
+            , ( "premium_price", maybeFloat user.premium_price )
             , ( "is_accessible", maybeBool user.is_accessible )
             , ( "follow_pending", maybeBool user.follow_pending )
             , ( "unread_notification_count", maybeInt user.unread_notification_count )
@@ -188,9 +198,9 @@ userListEncoder userList =
 
 postListDecoder : Decoder PostList
 postListDecoder =
-    JD.value
+    JD.succeed { data = [] }
 
 
 postListEncoder : PostList -> Value
 postListEncoder postList =
-    postList
+    JE.null
