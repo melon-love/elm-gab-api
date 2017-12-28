@@ -19,6 +19,8 @@ module Gab
         , meParts
         , popularFeed
         , popularFeedParts
+        , popularUsers
+        , popularUsersParts
         , request
         , requestParts
         , userFollowers
@@ -224,6 +226,27 @@ userFollowing token username before =
 userFollowingParts : Decoder a -> Token -> String -> Int -> RequestParts a
 userFollowingParts =
     userXxxParts "/following"
+
+
+{-| Return a list of popular users, as a UserList record.
+
+    popularUsers token
+
+-}
+popularUsers : Token -> Http.Request UserList
+popularUsers token =
+    popularUsersParts ED.userListDecoder token
+        |> request
+
+
+{-| Return a list of popular users, using a custom decoder.
+
+    popularUserParts decoder token
+
+-}
+popularUsersParts : Decoder a -> Token -> RequestParts a
+popularUsersParts decoder token =
+    getParts decoder token "popular/users"
 
 
 {-| Shared by all the getters that take before and after dates.

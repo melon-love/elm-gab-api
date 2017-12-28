@@ -200,9 +200,9 @@ userEncoder user =
 
 userListDecoder : Decoder UserList
 userListDecoder =
-    JD.map2 UserList
-        (JD.field "data" <| JD.list userDecoder)
-        (JD.field "no-more" JD.bool)
+    DP.decode UserList
+        |> required "data" (JD.list userDecoder)
+        |> optional "no-more" bool True
 
 
 userListEncoder : UserList -> Value

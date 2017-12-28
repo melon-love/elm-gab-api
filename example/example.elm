@@ -25,6 +25,7 @@ import Html
         , button
         , div
         , h2
+        , h3
         , img
         , input
         , option
@@ -120,6 +121,7 @@ type Msg
     | GetUserProfile
     | GetUserFollowers
     | GetUserFollowing
+    | GetPopularUsers
     | GetPopularFeed
     | ReceiveUser (Result Http.Error Value)
     | ReceiveUserList (Result Http.Error Value)
@@ -269,6 +271,12 @@ getUserFollowing model username before =
         \token -> Gab.userFollowingParts JD.value token username before
 
 
+getPopularUsers : Model -> ( Model, Cmd Msg )
+getPopularUsers model =
+    get model ReceiveUserList <|
+        \token -> Gab.popularUsersParts JD.value token
+
+
 getPopularFeed : Model -> String -> String -> ( Model, Cmd Msg )
 getPopularFeed model before after =
     get model ReceiveActivityLogList <|
@@ -386,6 +394,9 @@ update msg model =
         GetUserFollowing ->
             getUserFollowing model model.username model.userBefore
 
+        GetPopularUsers ->
+            getPopularUsers model
+
         GetPopularFeed ->
             getPopularFeed model model.postBefore model.postAfter
 
@@ -460,7 +471,7 @@ view model =
                 text ""
               else
                 p []
-                    [ p [] [ b [ text "User Information" ] ]
+                    [ h3 [] [ text "User Information" ]
                     , table []
                         [ tr []
                             [ td [] [ b [ text "Logged-in User:" ] ]
@@ -503,9 +514,17 @@ view model =
                                     [ text "Following" ]
                                 ]
                             ]
+                        , tr []
+                            [ td []
+                                [ b [ text "Popular Users:" ] ]
+                            , td []
+                                [ button [ onClick GetPopularUsers ]
+                                    [ text "Get List" ]
+                                ]
+                            ]
                         ]
                     , p []
-                        [ p [] [ b [ text "Posts" ] ]
+                        [ h3 [] [ text "Posts" ]
                         , table []
                             [ tr []
                                 [ td []
