@@ -18,10 +18,13 @@ module Gab.Types
         , CategoryDetails
         , Embed
         , HttpBody(..)
+        , MediaRecord
         , Post
         , PostList
         , RelatedPosts(..)
         , RequestParts
+        , UnknownAttachmentRecord
+        , UrlRecord
         , User
         , UserList
         )
@@ -64,7 +67,7 @@ type alias User =
     , is_private : Bool
     , is_premium : Bool
 
-    -- Optional
+    -- optional fields, according to the JSON spec.
     , created_at_month_label : Maybe String
     , follower_count : Maybe Int
     , following_count : Maybe Int
@@ -153,29 +156,42 @@ type alias Post =
     }
 
 
+type alias UrlRecord =
+    { image : String
+    , title : String
+    , description : String
+    , url : String
+    , source : String
+    }
+
+
+type alias MediaRecord =
+    { id : String
+    , url_thumbnail : String
+    , url_full : String
+    , width : Int
+    , height : Int
+    }
+
+
+type alias UnknownAttachmentRecord =
+    { type_ : String
+    , value : Value
+    }
+
+
 type Attachment
-    = NoAttachment
-    | UrlAttachment
-        { image : String
-        , title : String
-        , description : String
-        , url : String
-        , source : String
-        }
-    | MediaAttachment
-        { id : String
-        , url_thumbnail : String
-        , url_full : String
-        , width : Int
-        , height : Int
-        }
-    | YoutubeAttachment { value : String }
-    | GiphyAttachment { value : String }
+    = NoAttachment --type == null
+      --type == "url"
+    | UrlAttachment UrlRecord
+      --type == "media"
+    | MediaAttachment (List MediaRecord)
+      -- type == "youtube"
+    | YoutubeAttachment String
+      -- type == "giphy"
+    | GiphyAttachment String
       -- There may be types I haven't seen yet.
-    | UnknownAttachment
-        { type_ : String
-        , value : String
-        }
+    | UnknownAttachment UnknownAttachmentRecord
 
 
 type alias CategoryDetails =

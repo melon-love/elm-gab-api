@@ -20,7 +20,22 @@ module Gab.EncodeDecode
         , userListEncoder
         )
 
-import Gab.Types exposing (PostList, User, UserList)
+import Gab.Types
+    exposing
+        ( ActivityLog
+        , ActivityLogList
+        , Attachment(..)
+        , CategoryDetails
+        , Embed
+        , MediaRecord
+        , Post
+        , PostList
+        , RelatedPosts(..)
+        , UnknownAttachmentRecord
+        , UrlRecord
+        , User
+        , UserList
+        )
 import Json.Decode as JD exposing (Decoder, bool, float, int, maybe, string)
 import Json.Decode.Pipeline as DP exposing (optional, required)
 import Json.Encode as JE exposing (Value)
@@ -196,9 +211,161 @@ userListEncoder userList =
         ]
 
 
+recursivePostDecoder : Decoder Post
+recursivePostDecoder =
+    JD.lazy (\_ -> postDecoder)
+
+
+recursivePostListDecoder : Decoder PostList
+recursivePostListDecoder =
+    JD.field "data" <| JD.list recursivePostDecoder
+
+
+makePost : Int -> String -> Maybe String -> Bool -> String -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Int -> Int -> Int -> Int -> Int -> Bool -> Bool -> Bool -> Maybe Embed -> Attachment -> Maybe Int -> Maybe CategoryDetails -> Maybe String -> Bool -> Bool -> Bool -> User -> Maybe Post -> PostList -> Post
+makePost id created_at revised_at edited body only_emoji liked disliked bookmarked repost reported score like_count dislike_count reply_count repost_count is_quote is_reply is_replies_disabled embed attachment category category_details language nsfw is_premium is_locked user parent replies =
+    { id = id
+    , created_at = created_at
+    , revised_at = revised_at
+    , edited = edited
+    , body = body
+    , only_emoji = only_emoji
+    , liked = liked
+    , disliked = disliked
+    , bookmarked = bookmarked
+    , repost = repost
+    , reported = reported
+    , score = score
+    , like_count = like_count
+    , dislike_count = dislike_count
+    , reply_count = reply_count
+    , repost_count = repost_count
+    , is_quote = is_quote
+    , is_reply = is_reply
+    , is_replies_disabled = is_replies_disabled
+    , embed = embed
+    , attachment = attachment
+    , category = category
+    , category_details = category_details
+    , language = language
+    , nsfw = nsfw
+    , is_premium = is_premium
+    , is_locked = is_locked
+    , user = user
+    , related = RelatedPosts { parent = parent, replies = replies }
+    }
+
+
+postDecoder : Decoder Post
+postDecoder =
+    DP.decode makePost
+        |> required "id" int
+        |> required "created_at" string
+        |> optional "revised_at" (JD.nullable string) Nothing
+        |> required "edited" bool
+        |> required "body" string
+        |> required "only_emoji" bool
+        |> required "liked" bool
+        |> required "disliked" bool
+        |> required "bookmarked" bool
+        |> required "repost" bool
+        |> required "reported" bool
+        |> required "score" int
+        |> required "like_count" int
+        |> required "dislike_count" int
+        |> required "reply_count" int
+        |> required "repost_count" int
+        |> required "is_quote" bool
+        |> required "is_reply" bool
+        |> required "is_replies_disabled" bool
+        |> optional "embed" (JD.nullable embedDecoder) Nothing
+        |> required "attachment" attachmentDecoder
+        |> required "category" (JD.nullable int)
+        |> optional "category_details" (JD.nullable categoryDetailsDecoder) Nothing
+        |> optional "language" (JD.nullable string) Nothing
+        |> required "nsfw" bool
+        |> required "is_premium" bool
+        |> required "is_locked" bool
+        |> required "user" userDecoder
+        |> optional "parent"
+            (JD.nullable (JD.lazy (\_ -> recursivePostDecoder)))
+            Nothing
+        |> required "replies" (JD.lazy (\_ -> recursivePostListDecoder))
+
+
+embedDecoder : Decoder Embed
+embedDecoder =
+    JD.map2 Embed
+        (JD.field "html" string)
+        (JD.field "iframe" bool)
+
+
+type alias RawAttachment =
+    { type_ : Maybe String
+    , value : Value
+    }
+
+
+rawAttachmentDecoder : RawAttachment -> Decoder Attachment
+rawAttachmentDecoder { type_, value } =
+    case type_ of
+        Nothing ->
+            JD.succeed NoAttachment
+
+        Just t ->
+            case t of
+                "url" ->
+                    DP.decode UrlRecord
+                        |> required "image" string
+                        |> required "title" string
+                        |> required "description" string
+                        |> required "url" string
+                        |> required "source" string
+                        |> JD.map UrlAttachment
+
+                "media" ->
+                    DP.decode MediaRecord
+                        |> required "id" string
+                        |> required "url_thumbnail" string
+                        |> required "url_full" string
+                        |> required "width" int
+                        |> required "height" int
+                        |> JD.list
+                        |> JD.map MediaAttachment
+
+                "youtube" ->
+                    JD.map YoutubeAttachment string
+
+                "giphy" ->
+                    JD.map GiphyAttachment string
+
+                _ ->
+                    JD.succeed <|
+                        UnknownAttachment
+                            { type_ = t
+                            , value = value
+                            }
+
+
+attachmentDecoder : Decoder Attachment
+attachmentDecoder =
+    JD.map2 RawAttachment
+        (JD.field "type" <| JD.nullable string)
+        (JD.field "value" JD.value)
+        |> JD.andThen rawAttachmentDecoder
+
+
+categoryDetailsDecoder : Decoder CategoryDetails
+categoryDetailsDecoder =
+    DP.decode CategoryDetails
+        |> required "title" string
+        |> required "slug" string
+        |> required "value" int
+        |> required "emoji" string
+
+
 postListDecoder : Decoder PostList
 postListDecoder =
-    JD.succeed []
+    JD.list postDecoder
 
 
 postListEncoder : PostList -> Value
