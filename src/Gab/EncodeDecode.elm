@@ -104,40 +104,35 @@ filterNulls list =
     List.filter (\( _, v ) -> v /= JE.null) list
 
 
-maybeInt : Maybe Int -> Value
-maybeInt mx =
-    case mx of
+maybeEncoder : (a -> Value) -> Maybe a -> Value
+maybeEncoder encoder value =
+    case value of
         Nothing ->
             JE.null
 
-        Just x ->
-            JE.int x
+        Just a ->
+            encoder a
+
+
+maybeInt : Maybe Int -> Value
+maybeInt =
+    maybeEncoder JE.int
 
 
 maybeFloat : Maybe Float -> Value
-maybeFloat mx =
-    case mx of
-        Nothing ->
-            JE.null
-
-        Just x ->
-            JE.float x
+maybeFloat =
+    maybeEncoder JE.float
 
 
 maybeString : Maybe String -> Value
-maybeString mx =
-    case mx of
-        Nothing ->
-            JE.null
-
-        Just x ->
-            JE.string x
+maybeString =
+    maybeEncoder JE.string
 
 
 maybeBool : Bool -> Value
 maybeBool mx =
     if mx then
-        JE.bool True
+        JE.bool mx
     else
         JE.null
 
@@ -335,16 +330,6 @@ postEncoder post =
               ]
             , relatedPostsFields post.related
             ]
-
-
-maybeEncoder : (a -> Value) -> Maybe a -> Value
-maybeEncoder encoder value =
-    case value of
-        Nothing ->
-            JE.null
-
-        Just a ->
-            encoder a
 
 
 relatedPostsFields : RelatedPosts -> List ( String, Value )
