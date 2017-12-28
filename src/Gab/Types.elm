@@ -160,8 +160,8 @@ type alias Post =
 
 type alias UrlRecord =
     { image : String
-    , title : String
-    , description : String
+    , title : Maybe String
+    , description : Maybe String
     , url : String
     , source : String
     }
@@ -216,7 +216,7 @@ type alias Topic =
     , is_featured : Bool
     , title : String
     , category : Int
-    , user : User
+    , user : Maybe User
     }
 
 
@@ -229,9 +229,9 @@ type alias PostList =
 type alias ActivityLog =
     { id : String
     , published_at : String
+    , type_ : String
     , actuser : User
     , post : Post
-    , type_ : String
     }
 
 

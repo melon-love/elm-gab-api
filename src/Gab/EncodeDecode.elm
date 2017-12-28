@@ -12,7 +12,11 @@
 
 module Gab.EncodeDecode
     exposing
-        ( postDecoder
+        ( activityLogDecoder
+        , activityLogEncoder
+        , activityLogListDecoder
+        , activityLogListEncoder
+        , postDecoder
         , postEncoder
         , postListDecoder
         , postListEncoder
@@ -276,7 +280,7 @@ postDecoder =
         |> required "is_quote" bool
         |> required "is_reply" bool
         |> required "is_replies_disabled" bool
-        |> optional "embed" (JD.nullable embedDecoder) Nothing
+        |> optional "embed" maybeEmbedDecoder Nothing
         |> required "attachment" attachmentDecoder
         |> required "category" (JD.nullable int)
         |> optional "category_details" (JD.nullable categoryDetailsDecoder) Nothing
@@ -315,7 +319,7 @@ postEncoder post =
               , ( "is_quote", JE.bool post.is_quote )
               , ( "is_reply", JE.bool post.is_reply )
               , ( "is_replies_disabled", JE.bool post.is_replies_disabled )
-              , ( "embed", maybeEncoder embedEncoder post.embed )
+              , ( "embed", maybeEmbedEncoder post.embed )
               , ( "attachment", attachmentEncoder post.attachment )
               , ( "category", maybeInt post.category )
               , ( "category_details"
@@ -351,11 +355,21 @@ relatedPostsFields related =
                 ]
 
 
-embedDecoder : Decoder Embed
-embedDecoder =
-    JD.map2 Embed
-        (JD.field "html" string)
-        (JD.field "iframe" bool)
+maybeEmbed : Maybe String -> Maybe Bool -> Maybe Embed
+maybeEmbed html iframe =
+    case ( html, iframe ) of
+        ( Just h, Just i ) ->
+            Just { html = h, iframe = i }
+
+        _ ->
+            Nothing
+
+
+maybeEmbedDecoder : Decoder (Maybe Embed)
+maybeEmbedDecoder =
+    JD.map2 maybeEmbed
+        (JD.field "html" <| JD.nullable string)
+        (JD.field "iframe" <| JD.nullable bool)
 
 
 embedEncoder : Embed -> Value
@@ -366,10 +380,56 @@ embedEncoder embed =
         ]
 
 
+maybeEmbedEncoder : Maybe Embed -> Value
+maybeEmbedEncoder embed =
+    case embed of
+        Just e ->
+            embedEncoder e
+
+        Nothing ->
+            JE.object
+                [ ( "html", JE.null )
+                , ( "iframe", JE.null )
+                ]
+
+
 type alias RawAttachment =
     { type_ : Maybe String
     , value : Value
     }
+
+
+urlAttachmentDecoder : Decoder Attachment
+urlAttachmentDecoder =
+    DP.decode UrlRecord
+        |> required "image" string
+        |> required "title" (JD.nullable string)
+        |> required "description" (JD.nullable string)
+        |> required "url" string
+        |> required "source" string
+        |> JD.map UrlAttachment
+
+
+mediaAttachmentDecoder : Decoder Attachment
+mediaAttachmentDecoder =
+    DP.decode MediaRecord
+        |> required "id" string
+        |> required "url_thumbnail" string
+        |> required "url_full" string
+        |> required "width" int
+        |> required "height" int
+        |> JD.list
+        |> JD.map MediaAttachment
+
+
+tryDecoder : Decoder a -> Value -> (a -> b) -> Decoder b
+tryDecoder decoder value wrapper =
+    case JD.decodeValue decoder value of
+        Ok a ->
+            JD.succeed <| wrapper a
+
+        Err msg ->
+            JD.fail msg
 
 
 rawAttachmentDecoder : RawAttachment -> Decoder Attachment
@@ -381,29 +441,16 @@ rawAttachmentDecoder { type_, value } =
         Just t ->
             case t of
                 "url" ->
-                    DP.decode UrlRecord
-                        |> required "image" string
-                        |> required "title" string
-                        |> required "description" string
-                        |> required "url" string
-                        |> required "source" string
-                        |> JD.map UrlAttachment
+                    tryDecoder urlAttachmentDecoder value identity
 
                 "media" ->
-                    DP.decode MediaRecord
-                        |> required "id" string
-                        |> required "url_thumbnail" string
-                        |> required "url_full" string
-                        |> required "width" int
-                        |> required "height" int
-                        |> JD.list
-                        |> JD.map MediaAttachment
+                    tryDecoder mediaAttachmentDecoder value identity
 
                 "youtube" ->
-                    JD.map YoutubeAttachment string
+                    tryDecoder string value YoutubeAttachment
 
                 "giphy" ->
-                    JD.map GiphyAttachment string
+                    tryDecoder string value GiphyAttachment
 
                 _ ->
                     JD.succeed <|
@@ -467,8 +514,8 @@ urlRecordEncoder : UrlRecord -> Value
 urlRecordEncoder record =
     JE.object
         [ ( "image", JE.string record.image )
-        , ( "title", JE.string record.title )
-        , ( "description", JE.string record.description )
+        , ( "title", maybeString record.title )
+        , ( "description", maybeString record.description )
         , ( "url", JE.string record.url )
         , ( "source", JE.string record.source )
         ]
@@ -512,19 +559,26 @@ topicDecoder =
         |> required "is_featured" bool
         |> required "title" string
         |> required "category" int
-        |> required "user" userDecoder
+        |> optional "user" (JD.nullable userDecoder) Nothing
 
 
 topicEncoder : Topic -> Value
 topicEncoder topic =
-    JE.object
-        [ ( "id", JE.string topic.id )
-        , ( "created_at", JE.string topic.created_at )
-        , ( "is_featured", JE.bool topic.is_featured )
-        , ( "title", JE.string topic.title )
-        , ( "category", JE.int topic.category )
-        , ( "user", userEncoder topic.user )
-        ]
+    JE.object <|
+        List.concat
+            [ [ ( "id", JE.string topic.id )
+              , ( "created_at", JE.string topic.created_at )
+              , ( "is_featured", JE.bool topic.is_featured )
+              , ( "title", JE.string topic.title )
+              , ( "category", JE.int topic.category )
+              ]
+            , case topic.user of
+                Nothing ->
+                    []
+
+                Just u ->
+                    [ ( "user", userEncoder u ) ]
+            ]
 
 
 postListDecoder : Decoder PostList
@@ -534,4 +588,40 @@ postListDecoder =
 
 postListEncoder : PostList -> Value
 postListEncoder postList =
-    JE.null
+    JE.list <| List.map postEncoder postList
+
+
+activityLogDecoder : Decoder ActivityLog
+activityLogDecoder =
+    DP.decode ActivityLog
+        |> required "id" string
+        |> required "published_at" string
+        |> required "type" string
+        |> required "actuser" userDecoder
+        |> required "post" (JD.lazy (\_ -> recursivePostDecoder))
+
+
+activityLogEncoder : ActivityLog -> Value
+activityLogEncoder log =
+    JE.object
+        [ ( "id", JE.string log.id )
+        , ( "published_at", JE.string log.published_at )
+        , ( "type", JE.string log.type_ )
+        , ( "actuser", userEncoder log.actuser )
+        , ( "post", postEncoder log.post )
+        ]
+
+
+activityLogListDecoder : Decoder ActivityLogList
+activityLogListDecoder =
+    DP.decode ActivityLogList
+        |> required "data" (JD.list activityLogDecoder)
+        |> optional "no-more" JD.bool True
+
+
+activityLogListEncoder : ActivityLogList -> Value
+activityLogListEncoder list =
+    JE.object
+        [ ( "data", JE.list <| List.map activityLogEncoder list.data )
+        , ( "no-more", JE.bool list.no_more )
+        ]

@@ -84,7 +84,12 @@ type Thing
     = ValueThing Value
     | UserThing Value
     | UserListThing Value
-    | PostListThing Value
+    | ActivityLogListThing Value
+
+
+nullThing : Thing
+nullThing =
+    ValueThing JE.null
 
 
 type alias Model =
@@ -118,7 +123,7 @@ type Msg
     | GetPopularFeed
     | ReceiveUser (Result Http.Error Value)
     | ReceiveUserList (Result Http.Error Value)
-    | ReceivePostList (Result Http.Error Value)
+    | ReceiveActivityLogList (Result Http.Error Value)
     | SetUsername String
     | SetUserBefore String
     | SetPostBefore String
@@ -193,11 +198,7 @@ init location =
     , request = Nothing
     , replyType = "Token"
     , replyThing =
-        ValueThing <|
-            if token == Nothing then
-                JE.null
-            else
-                JE.string "Response Token"
+        ValueThing JE.null
     , reply =
         case token of
             Nothing ->
@@ -270,7 +271,7 @@ getUserFollowing model username before =
 
 getPopularFeed : Model -> String -> String -> ( Model, Cmd Msg )
 getPopularFeed model before after =
-    get model ReceivePostList <|
+    get model ReceiveActivityLogList <|
         \token -> Gab.popularFeedParts JD.value token before after
 
 
@@ -344,7 +345,7 @@ update msg model =
                                                 | clientId = "not telling"
                                                 , redirectUri = "don't ask"
                                             }
-                                    , ValueThing <| JE.string "Authorization"
+                                    , ValueThing JE.null
                                     )
 
                                 _ ->
@@ -394,8 +395,8 @@ update msg model =
         ReceiveUserList result ->
             receiveThing UserListThing result model
 
-        ReceivePostList result ->
-            receiveThing PostListThing result model
+        ReceiveActivityLogList result ->
+            receiveThing ActivityLogListThing result model
 
 
 receiveThing : (Value -> Thing) -> Result Http.Error Value -> Model -> ( Model, Cmd Msg )
@@ -440,8 +441,8 @@ decodeEncode thing =
         UserListThing value ->
             doDecodeEncode ED.userListDecoder ED.userListEncoder value
 
-        PostListThing value ->
-            doDecodeEncode ED.postListDecoder ED.postListEncoder value
+        ActivityLogListThing value ->
+            doDecodeEncode ED.activityLogListDecoder ED.activityLogListEncoder value
 
 
 view : Model -> Html Msg
@@ -574,18 +575,23 @@ view model =
 
                 ( _, Just reply ) ->
                     span []
-                        [ b [ text <| model.replyType ++ ":" ]
+                        [ if model.replyThing == nullThing then
+                            text ""
+                          else
+                            span []
+                                [ b [ text "Decoded and re-encoded:" ]
+                                , pre []
+                                    [ text <|
+                                        encodeWrap
+                                            model.prettify
+                                            (decodeEncode model.replyThing)
+                                    , br
+                                    ]
+                                ]
+                        , b [ text <| model.replyType ++ ":" ]
                         , pre []
                             [ text <|
                                 encodeWrap model.prettify reply
-                            ]
-                        , br
-                        , b [ text "Decoded and re-encoded:" ]
-                        , pre []
-                            [ text <|
-                                encodeWrap
-                                    model.prettify
-                                    (decodeEncode model.replyThing)
                             ]
                         ]
 
