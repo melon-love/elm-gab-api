@@ -12,7 +12,9 @@
 
 module Gab.EncodeDecode
     exposing
-        ( postListDecoder
+        ( postDecoder
+        , postEncoder
+        , postListDecoder
         , postListEncoder
         , userDecoder
         , userEncoder
@@ -31,6 +33,7 @@ import Gab.Types
         , Post
         , PostList
         , RelatedPosts(..)
+        , Topic
         , UnknownAttachmentRecord
         , UrlRecord
         , User
@@ -221,8 +224,8 @@ recursivePostListDecoder =
     JD.field "data" <| JD.list recursivePostDecoder
 
 
-makePost : Int -> String -> Maybe String -> Bool -> String -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Int -> Int -> Int -> Int -> Int -> Bool -> Bool -> Bool -> Maybe Embed -> Attachment -> Maybe Int -> Maybe CategoryDetails -> Maybe String -> Bool -> Bool -> Bool -> User -> Maybe Post -> PostList -> Post
-makePost id created_at revised_at edited body only_emoji liked disliked bookmarked repost reported score like_count dislike_count reply_count repost_count is_quote is_reply is_replies_disabled embed attachment category category_details language nsfw is_premium is_locked user parent replies =
+makePost : Int -> String -> Maybe String -> Bool -> String -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Int -> Int -> Int -> Int -> Int -> Bool -> Bool -> Bool -> Maybe Embed -> Attachment -> Maybe Int -> Maybe CategoryDetails -> Maybe String -> Bool -> Bool -> Bool -> User -> Maybe Topic -> Maybe Post -> PostList -> Post
+makePost id created_at revised_at edited body only_emoji liked disliked bookmarked repost reported score like_count dislike_count reply_count repost_count is_quote is_reply is_replies_disabled embed attachment category category_details language nsfw is_premium is_locked user topic parent replies =
     { id = id
     , created_at = created_at
     , revised_at = revised_at
@@ -251,6 +254,7 @@ makePost id created_at revised_at edited body only_emoji liked disliked bookmark
     , is_premium = is_premium
     , is_locked = is_locked
     , user = user
+    , topic = topic
     , related = RelatedPosts { parent = parent, replies = replies }
     }
 
@@ -286,10 +290,80 @@ postDecoder =
         |> required "is_premium" bool
         |> required "is_locked" bool
         |> required "user" userDecoder
+        |> optional "topic" (JD.nullable topicDecoder) Nothing
         |> optional "parent"
             (JD.nullable (JD.lazy (\_ -> recursivePostDecoder)))
             Nothing
         |> required "replies" (JD.lazy (\_ -> recursivePostListDecoder))
+
+
+postEncoder : Post -> Value
+postEncoder post =
+    JE.object <|
+        List.concat
+            [ [ ( "id", JE.int post.id )
+              , ( "created_at", JE.string post.created_at )
+              , ( "revised_at", maybeString post.revised_at )
+              , ( "edited", JE.bool post.edited )
+              , ( "body", JE.string post.body )
+              , ( "only_emoji", JE.bool post.only_emoji )
+              , ( "liked", JE.bool post.liked )
+              , ( "disliked", JE.bool post.disliked )
+              , ( "bookmarked", JE.bool post.bookmarked )
+              , ( "repost", JE.bool post.repost )
+              , ( "reported", JE.bool post.reported )
+              , ( "score", JE.int post.score )
+              , ( "like_count", JE.int post.like_count )
+              , ( "dislike_count", JE.int post.dislike_count )
+              , ( "reply_count", JE.int post.reply_count )
+              , ( "repost_count", JE.int post.repost_count )
+              , ( "is_quote", JE.bool post.is_quote )
+              , ( "is_reply", JE.bool post.is_reply )
+              , ( "is_replies_disabled", JE.bool post.is_replies_disabled )
+              , ( "embed", maybeEncoder embedEncoder post.embed )
+              , ( "attachment", attachmentEncoder post.attachment )
+              , ( "category", maybeInt post.category )
+              , ( "category_details"
+                , maybeEncoder categoryDetailsEncoder post.category_details
+                )
+              , ( "language", maybeString post.language )
+              , ( "nsfw", JE.bool post.nsfw )
+              , ( "is_premium", JE.bool post.is_premium )
+              , ( "is_locked", JE.bool post.is_locked )
+              , ( "user", userEncoder post.user )
+              , ( "topic", maybeEncoder topicEncoder post.topic )
+              ]
+            , relatedPostsFields post.related
+            ]
+
+
+maybeEncoder : (a -> Value) -> Maybe a -> Value
+maybeEncoder encoder value =
+    case value of
+        Nothing ->
+            JE.null
+
+        Just a ->
+            encoder a
+
+
+relatedPostsFields : RelatedPosts -> List ( String, Value )
+relatedPostsFields related =
+    case related of
+        RelatedPosts { parent, replies } ->
+            List.concat
+                [ case parent of
+                    Nothing ->
+                        []
+
+                    Just post ->
+                        [ ( "parent", postEncoder post ) ]
+                , [ ( "replies"
+                    , JE.object
+                        [ ( "data", JE.list <| List.map postEncoder replies ) ]
+                    )
+                  ]
+                ]
 
 
 embedDecoder : Decoder Embed
@@ -297,6 +371,14 @@ embedDecoder =
     JD.map2 Embed
         (JD.field "html" string)
         (JD.field "iframe" bool)
+
+
+embedEncoder : Embed -> Value
+embedEncoder embed =
+    JE.object
+        [ ( "html", JE.string embed.html )
+        , ( "iframe", JE.bool embed.iframe )
+        ]
 
 
 type alias RawAttachment =
@@ -354,6 +436,70 @@ attachmentDecoder =
         |> JD.andThen rawAttachmentDecoder
 
 
+attachmentEncoder : Attachment -> Value
+attachmentEncoder attachment =
+    case attachment of
+        NoAttachment ->
+            JE.object
+                [ ( "type", JE.null )
+                , ( "value", JE.null )
+                ]
+
+        UrlAttachment url ->
+            JE.object
+                [ ( "type", JE.string "url" )
+                , ( "value", urlRecordEncoder url )
+                ]
+
+        MediaAttachment media ->
+            JE.object
+                [ ( "type", JE.string "media" )
+                , ( "value"
+                  , JE.list <| List.map mediaRecordEncoder media
+                  )
+                ]
+
+        YoutubeAttachment value ->
+            JE.object
+                [ ( "type", JE.string "youtube" )
+                , ( "value", JE.string value )
+                ]
+
+        GiphyAttachment value ->
+            JE.object
+                [ ( "type", JE.string "giphy" )
+                , ( "value", JE.string value )
+                ]
+
+        UnknownAttachment { type_, value } ->
+            JE.object
+                [ ( "type", JE.string type_ )
+                , ( "value", value )
+                ]
+
+
+urlRecordEncoder : UrlRecord -> Value
+urlRecordEncoder record =
+    JE.object
+        [ ( "image", JE.string record.image )
+        , ( "title", JE.string record.title )
+        , ( "description", JE.string record.description )
+        , ( "url", JE.string record.url )
+        , ( "source", JE.string record.source )
+        ]
+
+
+mediaRecordEncoder : MediaRecord -> Value
+mediaRecordEncoder record =
+    JE.object
+        [ ( "id", JE.string record.id )
+        , ( "url_thumbnail", JE.string record.url_thumbnail )
+        , ( "url_full", JE.string record.url_full )
+        , ( "width", JE.int record.width )
+        , ( "height", JE.int record.height )
+        ]
+
+
 categoryDetailsDecoder : Decoder CategoryDetails
 categoryDetailsDecoder =
     DP.decode CategoryDetails
@@ -361,6 +507,39 @@ categoryDetailsDecoder =
         |> required "slug" string
         |> required "value" int
         |> required "emoji" string
+
+
+categoryDetailsEncoder : CategoryDetails -> Value
+categoryDetailsEncoder details =
+    JE.object
+        [ ( "title", JE.string details.title )
+        , ( "slug", JE.string details.slug )
+        , ( "value", JE.int details.value )
+        , ( "emoji", JE.string details.emoji )
+        ]
+
+
+topicDecoder : Decoder Topic
+topicDecoder =
+    DP.decode Topic
+        |> required "id" string
+        |> required "created_at" string
+        |> required "is_featured" bool
+        |> required "title" string
+        |> required "category" int
+        |> required "user" userDecoder
+
+
+topicEncoder : Topic -> Value
+topicEncoder topic =
+    JE.object
+        [ ( "id", JE.string topic.id )
+        , ( "created_at", JE.string topic.created_at )
+        , ( "is_featured", JE.bool topic.is_featured )
+        , ( "title", JE.string topic.title )
+        , ( "category", JE.int topic.category )
+        , ( "user", userEncoder topic.user )
+        ]
 
 
 postListDecoder : Decoder PostList

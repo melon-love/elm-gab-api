@@ -23,6 +23,7 @@ module Gab.Types
         , PostList
         , RelatedPosts(..)
         , RequestParts
+        , Topic
         , UnknownAttachmentRecord
         , UrlRecord
         , User
@@ -152,6 +153,7 @@ type alias Post =
     , is_premium : Bool
     , is_locked : Bool
     , user : User
+    , topic : Maybe Topic
     , related : RelatedPosts
     }
 
@@ -205,6 +207,16 @@ type alias CategoryDetails =
 type alias Embed =
     { html : String
     , iframe : Bool
+    }
+
+
+type alias Topic =
+    { id : String
+    , created_at : String
+    , is_featured : Bool
+    , title : String
+    , category : Int
+    , user : User
     }
 
 
