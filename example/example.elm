@@ -16,7 +16,7 @@ import Char
 import Dict exposing (Dict)
 import Gab
 import Gab.EncodeDecode as ED
-import Gab.Types exposing (RequestParts)
+import Gab.Types exposing (RequestParts, User)
 import Html
     exposing
         ( Attribute
@@ -43,6 +43,7 @@ import Html.Attributes
         ( alt
         , checked
         , colspan
+        , disabled
         , height
         , href
         , selected
@@ -100,6 +101,7 @@ type alias Model =
     , state : Maybe String
     , msg : Maybe String
     , request : Maybe (RequestParts JD.Value)
+    , loggedInUser : Maybe String
     , replyType : String
     , replyThing : Thing
     , reply : Maybe Value
@@ -118,6 +120,7 @@ type alias Model =
 type Msg
     = ReceiveLocation Location
     | ReceiveAuthorization (Result Http.Error Authorization)
+    | ReceiveLoggedInUser (Result Http.Error User)
     | Login
     | GetMe
     | GetUserProfile
@@ -203,6 +206,7 @@ init location =
     , state = state
     , msg = msg
     , request = Nothing
+    , loggedInUser = Nothing
     , replyType = "Token"
     , replyThing =
         ValueThing JE.null
@@ -395,6 +399,24 @@ update msg model =
                             , replyThing = replyThing
                             , reply = reply
                         }
+                        ! (case model.token of
+                            Nothing ->
+                                []
+
+                            Just token ->
+                                [ Http.send ReceiveLoggedInUser <|
+                                    Gab.me token.token
+                                ]
+                          )
+
+        ReceiveLoggedInUser result ->
+            case result of
+                Err _ ->
+                    { model | msg = Just "Error getting logged-in user name." }
+                        ! []
+
+                Ok user ->
+                    { model | loggedInUser = Just user.username }
                         ! []
 
         Login ->
@@ -487,6 +509,58 @@ decodeEncode thing =
             doDecodeEncode ED.activityLogListDecoder ED.activityLogListEncoder value
 
 
+link : String -> String -> Html Msg
+link txt url =
+    a
+        [ href url
+        , target "_blank"
+        ]
+        [ text txt ]
+
+
+maybeLink : String -> Maybe String -> Html Msg
+maybeLink txt url =
+    case url of
+        Nothing ->
+            text txt
+
+        Just u ->
+            link txt u
+
+
+userUrl : Maybe String -> Maybe String
+userUrl user =
+    case user of
+        Nothing ->
+            Nothing
+
+        Just u ->
+            Just <| "https://gab.ai/" ++ u
+
+
+loggedInUserUrl : Model -> Maybe String
+loggedInUserUrl model =
+    userUrl model.loggedInUser
+
+
+usernameUrl : Model -> Maybe String
+usernameUrl model =
+    userUrl <|
+        if model.username == "" then
+            Nothing
+        else
+            Just model.username
+
+
+postUserUrl : Model -> Maybe String
+postUserUrl model =
+    userUrl <|
+        if model.postUser == "" then
+            Nothing
+        else
+            Just model.postUser
+
+
 view : Model -> Html Msg
 view model =
     div
@@ -505,7 +579,11 @@ view model =
                     [ h3 [] [ text "User Information" ]
                     , table []
                         [ tr []
-                            [ td [] [ b [ text "Logged-in User:" ] ]
+                            [ td []
+                                [ b
+                                    [ maybeLink "Logged-in User:" <| loggedInUserUrl model
+                                    ]
+                                ]
                             , td []
                                 [ button [ onClick GetMe ]
                                     [ text "Get Profile" ]
@@ -513,7 +591,10 @@ view model =
                             ]
                         , tr []
                             [ td []
-                                [ b [ text "Username: " ]
+                                [ b
+                                    [ maybeLink "Username:" <| usernameUrl model
+                                    , text " "
+                                    ]
                                 , input
                                     [ size 20
                                     , onInput SetUsername
@@ -522,7 +603,10 @@ view model =
                                     []
                                 ]
                             , td []
-                                [ button [ onClick GetUserProfile ]
+                                [ button
+                                    [ onClick GetUserProfile
+                                    , disabled <| model.username == ""
+                                    ]
                                     [ text "Get Profile" ]
                                 ]
                             ]
@@ -538,10 +622,16 @@ view model =
                                 ]
                             , td []
                                 [ text <| nbsp ++ nbsp
-                                , button [ onClick GetUserFollowers ]
+                                , button
+                                    [ onClick GetUserFollowers
+                                    , disabled <| model.username == ""
+                                    ]
                                     [ text "Followers" ]
                                 , text " "
-                                , button [ onClick GetUserFollowing ]
+                                , button
+                                    [ onClick GetUserFollowing
+                                    , disabled <| model.username == ""
+                                    ]
                                     [ text "Following" ]
                                 ]
                             ]
@@ -559,7 +649,7 @@ view model =
                         , table []
                             [ tr []
                                 [ td []
-                                    [ b [ text "Popular Feed:" ] ]
+                                    [ b [ link "Popular Feed:" "https://gab.ai/popular" ] ]
                                 , td []
                                     [ button [ onClick GetPopularFeed ]
                                         [ text "Get Posts" ]
@@ -590,7 +680,16 @@ view model =
                                 ]
                             , tr []
                                 [ td []
-                                    [ b [ text <| nbsp ++ nbsp ++ "Logged-in User:" ]
+                                    [ b
+                                        [ text <| nbsp ++ nbsp
+                                        , maybeLink "Logged-in User:" <|
+                                            case model.loggedInUser of
+                                                Nothing ->
+                                                    userUrl <| Just ""
+
+                                                Just user ->
+                                                    userUrl <| Just user
+                                        ]
                                     ]
                                 , td []
                                     [ button [ onClick GetHomeFeed ]
@@ -600,7 +699,11 @@ view model =
                                 ]
                             , tr []
                                 [ td []
-                                    [ b [ text <| nbsp ++ nbsp ++ "Username: " ]
+                                    [ b
+                                        [ text <| nbsp ++ nbsp
+                                        , maybeLink "Username:" <| postUserUrl model
+                                        , text " "
+                                        ]
                                     , input
                                         [ size 20
                                         , onInput SetPostUser
@@ -609,7 +712,10 @@ view model =
                                         []
                                     ]
                                 , td []
-                                    [ button [ onClick GetUserFeed ]
+                                    [ button
+                                        [ onClick GetUserFeed
+                                        , disabled <| model.postUser == ""
+                                        ]
                                         [ text "User Feed" ]
                                     ]
                                 ]
