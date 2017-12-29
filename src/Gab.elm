@@ -15,6 +15,8 @@ module Gab
         ( bodyToString
         , gabApiUri
         , getParts
+        , homeFeed
+        , homeFeedParts
         , me
         , meParts
         , popularFeed
@@ -23,6 +25,8 @@ module Gab
         , popularUsersParts
         , request
         , requestParts
+        , userFeed
+        , userFeedParts
         , userFollowers
         , userFollowersParts
         , userFollowing
@@ -299,3 +303,53 @@ The posts returned will have dates between `before` and `after`. Pass the empty 
 popularFeedParts : Decoder a -> Token -> String -> String -> RequestParts a
 popularFeedParts decoder token before after =
     beforeAfterParts "popular/feed" decoder token before after
+
+
+{-| Return posts in the home feed.
+
+    homeFeed token before after.
+
+The posts returned will have dates between `before` and `after`. Pass the empty string for either to not limit that end.
+
+-}
+homeFeed : Token -> String -> String -> Http.Request PostList
+homeFeed token before after =
+    homeFeedParts ED.postListDecoder token before after
+        |> request
+
+
+{-| Return posts in the home feed, using a custom encoder.
+
+    homeFeedParts decoder token before after
+
+The posts returned will have dates between `before` and `after`. Pass the empty string for either to not limit that end.
+
+-}
+homeFeedParts : Decoder a -> Token -> String -> String -> RequestParts a
+homeFeedParts decoder token before after =
+    beforeAfterParts "feed" decoder token before after
+
+
+{-| Return posts for a user feed.
+
+    userFeed token user before after.
+
+The posts returned will have dates between `before` and `after`. Pass the empty string for either to not limit that end.
+
+-}
+userFeed : Token -> String -> String -> String -> Http.Request PostList
+userFeed token user before after =
+    userFeedParts ED.postListDecoder token user before after
+        |> request
+
+
+{-| Return posts for a user feed, using a custom decoder.
+
+    userFeedParts decoder user token before after
+
+The posts returned will have dates between `before` and `after`. Pass the empty string for either to not limit that end.
+
+-}
+userFeedParts : Decoder a -> Token -> String -> String -> String -> RequestParts a
+userFeedParts decoder token user before after =
+    beforeAfterParts ("users/" ++ user ++ "/feed") decoder token before after

@@ -42,6 +42,7 @@ import Html.Attributes
     exposing
         ( alt
         , checked
+        , colspan
         , height
         , href
         , selected
@@ -108,6 +109,7 @@ type alias Model =
     , prettify : Bool
     , username : String
     , userBefore : Int
+    , postUser : String
     , postBefore : String
     , postAfter : String
     }
@@ -122,6 +124,8 @@ type Msg
     | GetUserFollowers
     | GetUserFollowing
     | GetPopularUsers
+    | GetHomeFeed
+    | GetUserFeed
     | GetPopularFeed
     | ReceiveUser (Result Http.Error Value)
     | ReceiveUserList (Result Http.Error Value)
@@ -130,6 +134,7 @@ type Msg
     | SetUserBefore String
     | SetPostBefore String
     | SetPostAfter String
+    | SetPostUser String
     | TogglePrettify
 
 
@@ -214,6 +219,7 @@ init location =
     , prettify = True
     , username = "xossbow"
     , userBefore = 0
+    , postUser = "xossbow"
     , postBefore = ""
     , postAfter = ""
     }
@@ -239,7 +245,11 @@ get model receiver makeRequest =
                         req =
                             makeRequest token.token
                     in
-                    { model | request = Just req }
+                    { model
+                        | request = Just req
+                        , replyThing = nullThing
+                        , reply = Nothing
+                    }
                         ! [ Http.send receiver <| Gab.request req ]
 
                 _ ->
@@ -277,10 +287,22 @@ getPopularUsers model =
         \token -> Gab.popularUsersParts JD.value token
 
 
-getPopularFeed : Model -> String -> String -> ( Model, Cmd Msg )
-getPopularFeed model before after =
+getHomeFeed : Model -> String -> String -> ( Model, Cmd Msg )
+getHomeFeed model before after =
     get model ReceiveActivityLogList <|
-        \token -> Gab.popularFeedParts JD.value token before after
+        \token -> Gab.homeFeedParts JD.value token before after
+
+
+getUserFeed : Model -> String -> String -> String -> ( Model, Cmd Msg )
+getUserFeed model user before after =
+    get model ReceiveActivityLogList <|
+        \token -> Gab.userFeedParts JD.value token user before after
+
+
+getPopularFeed : Model -> ( Model, Cmd Msg )
+getPopularFeed model =
+    get model ReceiveActivityLogList <|
+        \token -> Gab.popularFeedParts JD.value token "" ""
 
 
 lookupProvider : Model -> Model
@@ -322,6 +344,9 @@ update msg model =
 
                 Ok a ->
                     { model | userBefore = a } ! []
+
+        SetPostUser postUser ->
+            { model | postUser = postUser } ! []
 
         SetPostBefore before ->
             { model | postBefore = before } ! []
@@ -397,8 +422,14 @@ update msg model =
         GetPopularUsers ->
             getPopularUsers model
 
+        GetHomeFeed ->
+            getHomeFeed model model.postBefore model.postAfter
+
+        GetUserFeed ->
+            getUserFeed model model.postUser model.postBefore model.postAfter
+
         GetPopularFeed ->
-            getPopularFeed model model.postBefore model.postAfter
+            getPopularFeed model
 
         ReceiveUser result ->
             receiveThing UserThing result model
@@ -528,9 +559,17 @@ view model =
                         , table []
                             [ tr []
                                 [ td []
+                                    [ b [ text "Popular Feed:" ] ]
+                                , td []
+                                    [ button [ onClick GetPopularFeed ]
+                                        [ text "Get Posts" ]
+                                    ]
+                                ]
+                            , tr []
+                                [ td []
                                     [ b [ text "Before: " ]
                                     , input
-                                        [ size 20
+                                        [ size 40
                                         , onInput SetPostBefore
                                         , value model.postBefore
                                         ]
@@ -542,15 +581,36 @@ view model =
                                 [ td []
                                     [ b [ text " After: " ]
                                     , input
-                                        [ size 20
+                                        [ size 40
                                         , onInput SetPostAfter
                                         , value model.postAfter
                                         ]
                                         []
                                     ]
+                                ]
+                            , tr []
+                                [ td []
+                                    [ b [ text <| nbsp ++ nbsp ++ "Logged-in User:" ]
+                                    ]
                                 , td []
-                                    [ button [ onClick GetPopularFeed ]
-                                        [ text "Popular Feed" ]
+                                    [ button [ onClick GetHomeFeed ]
+                                        [ text "Home Feed"
+                                        ]
+                                    ]
+                                ]
+                            , tr []
+                                [ td []
+                                    [ b [ text <| nbsp ++ nbsp ++ "Username: " ]
+                                    , input
+                                        [ size 20
+                                        , onInput SetPostUser
+                                        , value model.postUser
+                                        ]
+                                        []
+                                    ]
+                                , td []
+                                    [ button [ onClick GetUserFeed ]
+                                        [ text "User Feed" ]
                                     ]
                                 ]
                             ]
@@ -615,7 +675,9 @@ view model =
                         ]
 
                 _ ->
-                    b [ text "Nothing to report" ]
+                    p []
+                        [ b [ text "Waiting for request..." ]
+                        ]
             ]
         , footerDiv model
         ]
