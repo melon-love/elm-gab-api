@@ -10,7 +10,7 @@
 ----------------------------------------------------------------------
 
 
-module Main exposing (..)
+module GabAPIExample exposing (..)
 
 import Char
 import Dict exposing (Dict)
