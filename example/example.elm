@@ -682,13 +682,7 @@ view model =
                                 [ td []
                                     [ b
                                         [ text <| nbsp ++ nbsp
-                                        , maybeLink "Logged-in User:" <|
-                                            case model.loggedInUser of
-                                                Nothing ->
-                                                    userUrl <| Just ""
-
-                                                Just user ->
-                                                    userUrl <| Just user
+                                        , link "Logged-in User:" "https://gab.ai/"
                                         ]
                                     ]
                                 , td []
