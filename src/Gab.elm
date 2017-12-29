@@ -13,16 +13,31 @@
 module Gab
     exposing
         ( bodyToString
+        , dislikePost
+        , dislikePostParts
+        , doParts
+        , doPostsParts
+        , doUsersParts
+        , followUser
+        , followUserParts
         , gabApiUri
         , getParts
+        , getPost
+        , getPostParts
         , homeFeed
         , homeFeedParts
+        , likePost
+        , likePostParts
         , me
         , meParts
+        , muteUser
+        , muteUserParts
         , popularFeed
         , popularFeedParts
         , popularUsers
         , popularUsersParts
+        , repost
+        , repostParts
         , request
         , requestParts
         , userFeed
@@ -37,7 +52,7 @@ module Gab
 
 import Erl.Query
 import Gab.EncodeDecode as ED
-import Gab.Types exposing (HttpBody(..), PostList, RequestParts, User, UserList)
+import Gab.Types exposing (ActivityLogList, HttpBody(..), Post, RequestParts, User, UserList)
 import Http
 import Json.Decode as JD exposing (Decoder)
 import Json.Encode as JE exposing (Value)
@@ -253,14 +268,90 @@ popularUsersParts decoder token =
     getParts decoder token "popular/users"
 
 
+{-| Follow or unfollow a user. Return value not interesting.
+
+    followUser token username unfollow
+
+-}
+followUser : Token -> String -> Bool -> Http.Request Value
+followUser token username unfollow =
+    followUserParts JD.value token username unfollow
+        |> request
+
+
+{-| Mute or unmute a user. Return value not interesting.
+
+    muteUser token username unmute
+
+-}
+muteUser : Token -> String -> Bool -> Http.Request Value
+muteUser token username unlike =
+    muteUserParts JD.value token username unlike
+        |> request
+
+
+{-| Shared by doUsersParts and doPostParts
+
+    doParts prefix operation decoder token identifier undo
+
+`prefix` can be "users" or "posts".
+
+-}
+doParts : String -> String -> Decoder a -> Token -> String -> Bool -> RequestParts a
+doParts prefix operation decoder token identifier undo =
+    let
+        method =
+            if undo then
+                "DELETE"
+            else
+                "POST"
+
+        path =
+            prefix ++ "/" ++ identifier ++ "/" ++ operation
+    in
+    requestParts method [] EmptyBody decoder token path
+
+
+{-| Shared by followUserParts and muteUserParts
+
+    doUsersParts operation decoder token username undo
+
+`operation` can be "follow" or "mute".
+
+-}
+doUsersParts : String -> Decoder a -> Token -> String -> Bool -> RequestParts a
+doUsersParts =
+    doParts "users"
+
+
+{-| Follow or unfollow a user, with a custom decoder.
+
+    followUserParts decoder token username unfollow
+
+-}
+followUserParts : Decoder a -> Token -> String -> Bool -> RequestParts a
+followUserParts =
+    doUsersParts "follow"
+
+
+{-| Mute or unmute a user, with a custom decoder.
+
+    muteUserParts decoder token username unmute
+
+-}
+muteUserParts : Decoder a -> Token -> String -> Bool -> RequestParts a
+muteUserParts =
+    doUsersParts "mute"
+
+
 {-| Shared by all the getters that take before and after dates.
+
+    beforeAfterParts prefix decoder token before after
+
 -}
 beforeAfterParts : String -> Decoder a -> Token -> String -> String -> RequestParts a
-beforeAfterParts xxx decoder token before after =
+beforeAfterParts prefix decoder token before after =
     let
-        prefix =
-            xxx
-
         query =
             []
                 |> (if before == "" then
@@ -280,16 +371,16 @@ beforeAfterParts xxx decoder token before after =
     getParts decoder token path
 
 
-{-| Return the posts in the "popular" feed, as a PostList.
+{-| Return the posts in the "popular" feed, as a ActivityLogList.
 
     popularFeed token before after
 
 The posts returned will have dates between `before` and `after`. Pass the empty string for either to not limit that end.
 
 -}
-popularFeed : Token -> String -> String -> Http.Request PostList
+popularFeed : Token -> String -> String -> Http.Request ActivityLogList
 popularFeed token before after =
-    popularFeedParts ED.postListDecoder token before after
+    popularFeedParts ED.activityLogListDecoder token before after
         |> request
 
 
@@ -312,9 +403,9 @@ popularFeedParts decoder token before after =
 The posts returned will have dates between `before` and `after`. Pass the empty string for either to not limit that end.
 
 -}
-homeFeed : Token -> String -> String -> Http.Request PostList
+homeFeed : Token -> String -> String -> Http.Request ActivityLogList
 homeFeed token before after =
-    homeFeedParts ED.postListDecoder token before after
+    homeFeedParts ED.activityLogListDecoder token before after
         |> request
 
 
@@ -337,9 +428,9 @@ homeFeedParts decoder token before after =
 The posts returned will have dates between `before` and `after`. Pass the empty string for either to not limit that end.
 
 -}
-userFeed : Token -> String -> String -> String -> Http.Request PostList
+userFeed : Token -> String -> String -> String -> Http.Request ActivityLogList
 userFeed token user before after =
-    userFeedParts ED.postListDecoder token user before after
+    userFeedParts ED.activityLogListDecoder token user before after
         |> request
 
 
@@ -353,3 +444,99 @@ The posts returned will have dates between `before` and `after`. Pass the empty 
 userFeedParts : Decoder a -> Token -> String -> String -> String -> RequestParts a
 userFeedParts decoder token user before after =
     beforeAfterParts ("users/" ++ user ++ "/feed") decoder token before after
+
+
+{-| Get a single post.
+
+    getPost token postid
+
+-}
+getPost : Token -> String -> Http.Request Post
+getPost token postid =
+    getPostParts ED.postDecoder token postid
+        |> request
+
+
+{-| Get a single post, using a custom decoder.
+
+    getPostParts decoder token postid
+
+-}
+getPostParts : Decoder a -> Token -> String -> RequestParts a
+getPostParts decoder token postid =
+    getParts decoder token <| "posts/" ++ postid
+
+
+{-| Like or unlike a post. Return value not interesting.
+
+    likePost token postid unlike
+
+-}
+likePost : Token -> String -> Bool -> Http.Request Value
+likePost token postid unlike =
+    likePostParts JD.value token postid unlike
+        |> request
+
+
+{-| Dislike or undislike a post. Return value not interesting.
+
+    dislikePost token postid undislike
+
+-}
+dislikePost : Token -> String -> Bool -> Http.Request Value
+dislikePost token postid undislike =
+    dislikePostParts JD.value token postid undislike
+        |> request
+
+
+{-| Repost or unrepost. Return value not interesting.
+
+    repost token postid unrepost
+
+-}
+repost : Token -> String -> Bool -> Http.Request Value
+repost token postid unrepost =
+    repostParts JD.value token postid unrepost
+        |> request
+
+
+{-| Shared by likePostParts, dislikePostParts, repostParts
+
+    doPostsParts operation decoder token username undo
+
+`operation` can be "like", "dislike" or "repost".
+
+-}
+doPostsParts : String -> Decoder a -> Token -> String -> Bool -> RequestParts a
+doPostsParts =
+    doParts "posts"
+
+
+{-| Like or unlike a post, with a custom decoder.
+
+    likePostParts decoder token postid unlike
+
+-}
+likePostParts : Decoder a -> Token -> String -> Bool -> RequestParts a
+likePostParts =
+    doPostsParts "like"
+
+
+{-| Dislike or undislike a post, with a custom decoder.
+
+    dislikePostParts decoder token postid undislike
+
+-}
+dislikePostParts : Decoder a -> Token -> String -> Bool -> RequestParts a
+dislikePostParts =
+    doPostsParts "dislike"
+
+
+{-| Repost or unrepost, with a custom decoder.
+
+    repostParts decoder token postid unrepost
+
+-}
+repostParts : Decoder a -> Token -> String -> Bool -> RequestParts a
+repostParts =
+    doPostsParts "repost"

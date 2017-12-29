@@ -16,7 +16,7 @@ import Char
 import Dict exposing (Dict)
 import Gab
 import Gab.EncodeDecode as ED
-import Gab.Types exposing (RequestParts, User)
+import Gab.Types exposing (Post, RequestParts, User)
 import Html
     exposing
         ( Attribute
@@ -88,6 +88,7 @@ type Thing
     | UserThing Value
     | UserListThing Value
     | ActivityLogListThing Value
+    | PostThing Value
 
 
 nullThing : Thing
@@ -111,9 +112,12 @@ type alias Model =
     , prettify : Bool
     , username : String
     , userBefore : Int
+    , userProfile : Maybe User
     , postUser : String
     , postBefore : String
     , postAfter : String
+    , postId : String
+    , post : Maybe Post
     }
 
 
@@ -130,14 +134,19 @@ type Msg
     | GetHomeFeed
     | GetUserFeed
     | GetPopularFeed
-    | ReceiveUser (Result Http.Error Value)
+    | DoOperation String String String Bool
+    | ReceiveUser Bool (Result Http.Error Value)
     | ReceiveUserList (Result Http.Error Value)
     | ReceiveActivityLogList (Result Http.Error Value)
+    | ReceiveValue (Result Http.Error Value)
+    | ReceivePost (Result Http.Error Value)
     | SetUsername String
     | SetUserBefore String
     | SetPostBefore String
     | SetPostAfter String
     | SetPostUser String
+    | SetPostId String
+    | GetPost
     | TogglePrettify
 
 
@@ -223,9 +232,12 @@ init location =
     , prettify = True
     , username = "xossbow"
     , userBefore = 0
+    , userProfile = Nothing
     , postUser = "xossbow"
     , postBefore = ""
     , postAfter = ""
+    , postId = ""
+    , post = Nothing
     }
         ! [ Http.send ReceiveAuthorization <|
                 getAuthorization False "authorization.json"
@@ -263,13 +275,13 @@ get model receiver makeRequest =
 
 getMe : Model -> ( Model, Cmd Msg )
 getMe model =
-    get model ReceiveUser <|
+    get model (ReceiveUser False) <|
         \token -> Gab.meParts JD.value token
 
 
 getUserProfile : Model -> String -> ( Model, Cmd Msg )
 getUserProfile model username =
-    get model ReceiveUser <|
+    get model (ReceiveUser True) <|
         \token -> Gab.userProfileParts JD.value token username
 
 
@@ -309,6 +321,32 @@ getPopularFeed model =
         \token -> Gab.popularFeedParts JD.value token "" ""
 
 
+doOperation : String -> String -> String -> Bool -> Model -> ( Model, Cmd Msg )
+doOperation prefix operation identifier undo model =
+    let
+        mod =
+            case prefix of
+                "users" ->
+                    { model | userProfile = Nothing }
+
+                "posts" ->
+                    { model | post = Nothing }
+
+                _ ->
+                    model
+    in
+    get mod ReceiveValue <|
+        \token -> Gab.doParts prefix operation JD.value token identifier undo
+
+
+getPost : Model -> ( Model, Cmd Msg )
+getPost model =
+    get model ReceivePost <|
+        \token -> Gab.getPostParts JD.value token model.postId
+
+
+{-| Should add checkboxes to select scopes.
+-}
 lookupProvider : Model -> Model
 lookupProvider model =
     case model.authorization of
@@ -316,27 +354,26 @@ lookupProvider model =
             model
 
         Just auth ->
-            case List.head <| Dict.toList auth.scopes of
-                Nothing ->
-                    model
-
-                Just ( _, scope ) ->
-                    { model
-                        | tokenAuthorization =
-                            Just
-                                { authorization = auth
-                                , scope = [ scope ]
-                                , state = Nothing
-                                , redirectBackUri = model.redirectBackUri
-                                }
-                    }
+            { model
+                | tokenAuthorization =
+                    Just
+                        { authorization = auth
+                        , scope = List.map Tuple.second <| Dict.toList auth.scopes
+                        , state = Nothing
+                        , redirectBackUri = model.redirectBackUri
+                        }
+            }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         SetUsername username ->
-            { model | username = username } ! []
+            { model
+                | username = username
+                , userProfile = Nothing
+            }
+                ! []
 
         SetUserBefore before ->
             case String.toInt before of
@@ -357,6 +394,13 @@ update msg model =
 
         SetPostAfter after ->
             { model | postAfter = after } ! []
+
+        SetPostId id ->
+            { model
+                | postId = id
+                , post = Nothing
+            }
+                ! []
 
         TogglePrettify ->
             { model | prettify = not model.prettify } ! []
@@ -453,14 +497,67 @@ update msg model =
         GetPopularFeed ->
             getPopularFeed model
 
-        ReceiveUser result ->
-            receiveThing UserThing result model
+        DoOperation prefix operation identifier undo ->
+            doOperation prefix operation identifier undo model
+
+        GetPost ->
+            getPost model
+
+        ReceiveUser save result ->
+            receiveUserThing save result model
 
         ReceiveUserList result ->
             receiveThing UserListThing result model
 
         ReceiveActivityLogList result ->
             receiveThing ActivityLogListThing result model
+
+        ReceiveValue result ->
+            receiveThing ValueThing result model
+
+        ReceivePost result ->
+            receivePost result model
+
+
+receiveUserThing : Bool -> Result Http.Error Value -> Model -> ( Model, Cmd Msg )
+receiveUserThing save result model =
+    let
+        mod =
+            if not save then
+                model
+            else
+                case result of
+                    Err _ ->
+                        model
+
+                    Ok value ->
+                        case JD.decodeValue ED.userDecoder value of
+                            Err _ ->
+                                model
+
+                            Ok user ->
+                                { model | userProfile = Just user }
+    in
+    receiveThing UserThing result mod
+
+
+receivePost : Result Http.Error Value -> Model -> ( Model, Cmd Msg )
+receivePost result model =
+    let
+        mod =
+            case result of
+                Err _ ->
+                    model
+
+                Ok value ->
+                    case JD.decodeValue ED.postDecoder value of
+                        Err _ ->
+                            model
+
+                        Ok post ->
+                            { model | post = Just post }
+    in
+    receiveThing PostThing result mod
 
 
 receiveThing : (Value -> Thing) -> Result Http.Error Value -> Model -> ( Model, Cmd Msg )
@@ -507,6 +604,9 @@ decodeEncode thing =
 
         ActivityLogListThing value ->
             doDecodeEncode ED.activityLogListDecoder ED.activityLogListEncoder value
+
+        PostThing value ->
+            doDecodeEncode ED.postDecoder ED.postEncoder value
 
 
 link : String -> String -> Html Msg
@@ -635,6 +735,65 @@ view model =
                                     [ text "Following" ]
                                 ]
                             ]
+                        , tr [] <|
+                            let
+                                ( isDisabled, theTitle, unfollow, followText, unmute, muteText ) =
+                                    case model.userProfile of
+                                        Nothing ->
+                                            ( True
+                                            , "Click \"Get Profile\" to enable."
+                                            , True
+                                            , "(Un)Follow"
+                                            , True
+                                            , "(Un)Mute"
+                                            )
+
+                                        Just user ->
+                                            let
+                                                following =
+                                                    user.following || user.follow_pending
+                                            in
+                                            ( False
+                                            , ""
+                                            , following
+                                            , if following then
+                                                "Unfollow"
+                                              else
+                                                "Follow"
+                                            , True
+                                            , "Mute"
+                                            )
+                            in
+                            [ td [ colspan 2 ]
+                                [ text <| nbsp ++ nbsp
+                                , button
+                                    [ disabled isDisabled
+                                    , title theTitle
+                                    , onClick <|
+                                        DoOperation "users" "follow" model.username unfollow
+                                    ]
+                                    [ text followText ]
+                                , text " "
+                                , button
+                                    [ disabled isDisabled
+                                    , title theTitle
+                                    , onClick <|
+                                        DoOperation "users" "mute" model.username False
+                                    ]
+                                    [ text muteText ]
+                                , if isDisabled then
+                                    text ""
+                                  else
+                                    span []
+                                        [ text " "
+                                        , button
+                                            [ onClick <|
+                                                DoOperation "users" "mute" model.username True
+                                            ]
+                                            [ text "Unmute" ]
+                                        ]
+                                ]
+                            ]
                         , tr []
                             [ td []
                                 [ b [ text "Popular Users:" ] ]
@@ -656,7 +815,7 @@ view model =
                                     ]
                                 ]
                             , tr []
-                                [ td []
+                                [ td [ colspan 2 ]
                                     [ b [ text "Before: " ]
                                     , input
                                         [ size 40
@@ -665,10 +824,9 @@ view model =
                                         ]
                                         []
                                     ]
-                                , td [] [ text nbsp ]
                                 ]
                             , tr []
-                                [ td []
+                                [ td [ colspan 2 ]
                                     [ b [ text " After: " ]
                                     , input
                                         [ size 40
@@ -711,6 +869,99 @@ view model =
                                         , disabled <| model.postUser == ""
                                         ]
                                         [ text "User Feed" ]
+                                    ]
+                                ]
+                            , tr []
+                                [ td []
+                                    [ b
+                                        [ text "Post Id:"
+                                        , text " "
+                                        ]
+                                    , input
+                                        [ size 9
+                                        , onInput SetPostId
+                                        , value model.postId
+                                        ]
+                                        []
+                                    ]
+                                , td []
+                                    [ button
+                                        [ disabled <| model.postId == ""
+                                        , onClick GetPost
+                                        ]
+                                        [ text "Get" ]
+                                    ]
+                                ]
+                            , tr [] <|
+                                let
+                                    ( isDisabled, theTitle, unlike, likeText, undislike, dislikeText, unrepost, repostText ) =
+                                        case model.post of
+                                            Nothing ->
+                                                ( True
+                                                , "Click \"Get\" to enable."
+                                                , True
+                                                , "(Un)Like"
+                                                , True
+                                                , "(Un)Dislike"
+                                                , True
+                                                , "(Un)Repost"
+                                                )
+
+                                            Just post ->
+                                                let
+                                                    liked =
+                                                        post.liked
+
+                                                    disliked =
+                                                        post.disliked
+
+                                                    reposted =
+                                                        post.repost
+                                                in
+                                                ( False
+                                                , ""
+                                                , liked
+                                                , if liked then
+                                                    "Unlike"
+                                                  else
+                                                    "Like"
+                                                , disliked
+                                                , if disliked then
+                                                    "Undislike"
+                                                  else
+                                                    "Dislike"
+                                                , reposted
+                                                , if reposted then
+                                                    "Unrepost"
+                                                  else
+                                                    "Repost"
+                                                )
+                                in
+                                [ td [ colspan 2 ]
+                                    [ text <| String.repeat 4 nbsp
+                                    , button
+                                        [ disabled isDisabled
+                                        , title theTitle
+                                        , onClick <|
+                                            DoOperation "posts" "like" model.postUser unlike
+                                        ]
+                                        [ text likeText ]
+                                    , text " "
+                                    , button
+                                        [ disabled isDisabled
+                                        , title theTitle
+                                        , onClick <|
+                                            DoOperation "posts" "dislike" model.postUser undislike
+                                        ]
+                                        [ text dislikeText ]
+                                    , text " "
+                                    , button
+                                        [ disabled isDisabled
+                                        , title theTitle
+                                        , onClick <|
+                                            DoOperation "posts" "repost" model.postUser unrepost
+                                        ]
+                                        [ text repostText ]
                                     ]
                                 ]
                             ]
