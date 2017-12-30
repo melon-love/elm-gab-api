@@ -7,6 +7,8 @@
 -- Distributed under the MIT License
 -- See LICENSE.txt
 --
+-- Search for TODO to see remaining work.
+--
 ----------------------------------------------------------------------
 
 
@@ -226,7 +228,7 @@ init location =
 
             Just tok ->
                 Just <| responseTokenEncoder tok
-    , redirectBackUri = Debug.log "redirectBackUri" <| locationToRedirectBackUri location
+    , redirectBackUri = locationToRedirectBackUri location
     , authorization = Nothing
     , tokenAuthorization = Nothing
     , prettify = True
@@ -321,6 +323,8 @@ getPopularFeed model =
         \token -> Gab.popularFeedParts JD.value token "" ""
 
 
+{-| TODO: It would be good to refetch user or post after the operation is done.
+-}
 doOperation : String -> String -> String -> Bool -> Model -> ( Model, Cmd Msg )
 doOperation prefix operation identifier undo model =
     let
@@ -345,7 +349,7 @@ getPost model =
         \token -> Gab.getPostParts JD.value token model.postId
 
 
-{-| Should add checkboxes to select scopes.
+{-| TODO: add checkboxes to UI to select scopes.
 -}
 lookupProvider : Model -> Model
 lookupProvider model =
@@ -943,7 +947,7 @@ view model =
                                         [ disabled isDisabled
                                         , title theTitle
                                         , onClick <|
-                                            DoOperation "posts" "like" model.postUser unlike
+                                            DoOperation "posts" "like" model.postId unlike
                                         ]
                                         [ text likeText ]
                                     , text " "
@@ -951,7 +955,7 @@ view model =
                                         [ disabled isDisabled
                                         , title theTitle
                                         , onClick <|
-                                            DoOperation "posts" "dislike" model.postUser undislike
+                                            DoOperation "posts" "dislike" model.postId undislike
                                         ]
                                         [ text dislikeText ]
                                     , text " "
@@ -959,7 +963,7 @@ view model =
                                         [ disabled isDisabled
                                         , title theTitle
                                         , onClick <|
-                                            DoOperation "posts" "repost" model.postUser unrepost
+                                            DoOperation "posts" "repost" model.postId unrepost
                                         ]
                                         [ text repostText ]
                                     ]

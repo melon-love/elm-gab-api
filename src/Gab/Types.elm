@@ -21,6 +21,8 @@ module Gab.Types
         , MediaRecord
         , Post
         , PostList
+        , PostResult
+        , PostResultState(..)
         , RelatedPosts(..)
         , RequestParts
         , Topic
@@ -238,4 +240,19 @@ type alias ActivityLog =
 type alias ActivityLogList =
     { data : List ActivityLog
     , no_more : Bool
+    }
+
+
+{-| The value of `PostResult.state` for a successful operation.
+-}
+type PostResultState
+    = UnknownState
+    | SuccessState --"success"
+
+
+{-| Returned from the Post and Delete actions
+-}
+type alias PostResult =
+    { state : PostResultState
+    , message : String
     }
