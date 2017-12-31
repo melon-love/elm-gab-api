@@ -98,8 +98,19 @@ nullThing =
     ValueThing JE.null
 
 
+allScopes : List ( String, String )
+allScopes =
+    [ ( "Read", "read" )
+    , ( "Engage User", "engage-user" )
+    , ( "Engage Post", "engage-post" )
+    , ( "Notifications", "notifications" )
+    ]
+
+
 type alias Model =
     { authorization : Maybe Authorization
+    , scopes : List String
+    , receivedScopes : List String
     , token : Maybe ResponseToken
     , state : Maybe String
     , msg : Maybe String
@@ -142,6 +153,7 @@ type Msg
     | ReceiveActivityLogList (Result Http.Error Value)
     | ReceiveValue (Result Http.Error Value)
     | ReceivePost (Result Http.Error Value)
+    | ToggleScope String
     | SetUsername String
     | SetUserBefore String
     | SetPostBefore String
@@ -212,6 +224,16 @@ init location =
 
                 NoToken ->
                     ( Nothing, Nothing, Nothing )
+
+        ( reply, scopes ) =
+            case token of
+                Nothing ->
+                    ( Nothing, [ "read" ] )
+
+                Just tok ->
+                    ( Just <| responseTokenEncoder tok
+                    , tok.scope
+                    )
     in
     { token = token
     , state = state
@@ -221,15 +243,11 @@ init location =
     , replyType = "Token"
     , replyThing =
         ValueThing JE.null
-    , reply =
-        case token of
-            Nothing ->
-                Nothing
-
-            Just tok ->
-                Just <| responseTokenEncoder tok
+    , reply = reply
     , redirectBackUri = locationToRedirectBackUri location
     , authorization = Nothing
+    , scopes = scopes
+    , receivedScopes = scopes
     , tokenAuthorization = Nothing
     , prettify = True
     , username = "xossbow"
@@ -362,6 +380,8 @@ lookupProvider model =
                 | tokenAuthorization =
                     Just
                         { authorization = auth
+
+                        -- This will be overridden by the user checkboxes
                         , scope = List.map Tuple.second <| Dict.toList auth.scopes
                         , state = Nothing
                         , redirectBackUri = model.redirectBackUri
@@ -372,6 +392,16 @@ lookupProvider model =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        ToggleScope scope ->
+            let
+                scopes =
+                    if List.member scope model.scopes then
+                        List.filter ((/=) scope) model.scopes
+                    else
+                        scope :: model.scopes
+            in
+            { model | scopes = scopes } ! []
+
         SetUsername username ->
             { model
                 | username = username
@@ -442,6 +472,11 @@ update msg model =
                     lookupProvider
                         { model
                             | authorization = Just authorization
+                            , scopes =
+                                if model.token == Nothing then
+                                    List.map Tuple.second <| Dict.toList authorization.scopes
+                                else
+                                    model.scopes
                             , request = Nothing
                             , replyType = replyType
                             , replyThing = replyThing
@@ -475,7 +510,9 @@ update msg model =
 
                 Just authorization ->
                     model
-                        ! [ authorize authorization ]
+                        ! [ authorize
+                                { authorization | scope = model.scopes }
+                          ]
 
         GetMe ->
             getMe model
@@ -665,6 +702,39 @@ postUserUrl model =
             Just model.postUser
 
 
+isScopeSelected : String -> Model -> Bool
+isScopeSelected scope model =
+    List.filter ((==) scope) model.scopes
+        |> List.isEmpty
+        |> not
+
+
+scopeCheckbox : ( String, String ) -> Model -> Html Msg
+scopeCheckbox ( label, value ) model =
+    span []
+        [ input
+            [ type_ "checkbox"
+            , onClick <| ToggleScope value
+            , checked <| isScopeSelected value model
+            ]
+            []
+        , text " "
+        , text label
+        ]
+
+
+scopeCheckboxes : Model -> Html Msg
+scopeCheckboxes model =
+    span [] <|
+        List.concatMap
+            (\scope ->
+                [ scopeCheckbox scope model
+                , text nbsp2
+                ]
+            )
+            allScopes
+
+
 view : Model -> Html Msg
 view model =
     div
@@ -673,7 +743,9 @@ view model =
         [ div []
             [ h2 [] [ text "Gab API Example" ]
             , p []
-                [ button [ onClick Login ]
+                [ scopeCheckboxes model
+                , br
+                , button [ onClick Login ]
                     [ text "Login" ]
                 ]
             , if model.token == Nothing then
@@ -716,7 +788,7 @@ view model =
                             ]
                         , tr []
                             [ td []
-                                [ b [ text <| nbsp ++ nbsp ++ "before: " ]
+                                [ b [ text <| nbsp2 ++ "before: " ]
                                 , input
                                     [ size 3
                                     , onInput SetUserBefore
@@ -725,7 +797,7 @@ view model =
                                     []
                                 ]
                             , td []
-                                [ text <| nbsp ++ nbsp
+                                [ text nbsp2
                                 , button
                                     [ onClick GetUserFollowers
                                     , disabled <| model.username == ""
@@ -769,7 +841,15 @@ view model =
                                             )
                             in
                             [ td [ colspan 2 ]
-                                [ text <| nbsp ++ nbsp
+                                [ if List.member "engage-user" model.receivedScopes then
+                                    text ""
+                                  else
+                                    span []
+                                        [ text nbsp2
+                                        , text "(Since 'Engage User' scope is disabled, these will error)"
+                                        , br
+                                        ]
+                                , text nbsp2
                                 , button
                                     [ disabled isDisabled
                                     , title theTitle
@@ -843,7 +923,7 @@ view model =
                             , tr []
                                 [ td []
                                     [ b
-                                        [ text <| nbsp ++ nbsp
+                                        [ text nbsp2
                                         , link "Logged-in User:" "https://gab.ai/"
                                         ]
                                     ]
@@ -856,7 +936,7 @@ view model =
                             , tr []
                                 [ td []
                                     [ b
-                                        [ text <| nbsp ++ nbsp
+                                        [ text nbsp2
                                         , maybeLink "Username:" <| postUserUrl model
                                         , text " "
                                         ]
@@ -942,7 +1022,15 @@ view model =
                                                 )
                                 in
                                 [ td [ colspan 2 ]
-                                    [ text <| String.repeat 4 nbsp
+                                    [ if List.member "engage-post" model.receivedScopes then
+                                        text ""
+                                      else
+                                        span []
+                                            [ text nbsp4
+                                            , text "(Since 'Engage Post' scope is disabled, these will error)"
+                                            , br
+                                            ]
+                                    , text nbsp4
                                     , button
                                         [ disabled isDisabled
                                         , title theTitle
@@ -1141,6 +1229,16 @@ nbsp : String
 nbsp =
     -- \u00A0
     stringFromCode 160
+
+
+nbsp2 : String
+nbsp2 =
+    nbsp ++ nbsp
+
+
+nbsp4 : String
+nbsp4 =
+    nbsp2 ++ nbsp2
 
 
 copyright : String

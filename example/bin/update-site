@@ -2,4 +2,4 @@
 
 elm make example.elm --output site/index.html
 cd site
-rsyncit
+rsyncit -av --exclude authorization.json .
