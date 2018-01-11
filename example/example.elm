@@ -131,6 +131,7 @@ type alias Model =
     , postAfter : String
     , postId : String
     , post : Maybe Post
+    , showDecoded : Bool
     }
 
 
@@ -162,6 +163,7 @@ type Msg
     | SetPostId String
     | GetPost
     | TogglePrettify
+    | ShowHideDecoded
 
 
 {-| GitHub requires the "User-Agent" header.
@@ -258,6 +260,7 @@ init location =
     , postAfter = ""
     , postId = ""
     , post = Nothing
+    , showDecoded = True
     }
         ! [ Http.send ReceiveAuthorization <|
                 getAuthorization False "authorization.json"
@@ -438,6 +441,9 @@ update msg model =
 
         TogglePrettify ->
             { model | prettify = not model.prettify } ! []
+
+        ShowHideDecoded ->
+            { model | showDecoded = not model.showDecoded } ! []
 
         ReceiveLocation _ ->
             model ! []
@@ -782,6 +788,7 @@ view model =
                                 [ button
                                     [ onClick GetUserProfile
                                     , disabled <| model.username == ""
+                                    , title "Fillin 'Username' and click"
                                     ]
                                     [ text "Get Profile" ]
                                 ]
@@ -801,12 +808,14 @@ view model =
                                 , button
                                     [ onClick GetUserFollowers
                                     , disabled <| model.username == ""
+                                    , title "Fillin 'Username' and click."
                                     ]
                                     [ text "Followers" ]
                                 , text " "
                                 , button
                                     [ onClick GetUserFollowing
                                     , disabled <| model.username == ""
+                                    , title "Fillin 'Username' and click."
                                     ]
                                     [ text "Following" ]
                                 ]
@@ -951,6 +960,7 @@ view model =
                                     [ button
                                         [ onClick GetUserFeed
                                         , disabled <| model.postUser == ""
+                                        , title "Fillin 'Username' and click."
                                         ]
                                         [ text "User Feed" ]
                                     ]
@@ -972,6 +982,7 @@ view model =
                                     [ button
                                         [ disabled <| model.postId == ""
                                         , onClick GetPost
+                                        , title "Fillin 'Post Id' and click."
                                         ]
                                         [ text "Get" ]
                                     ]
@@ -1102,13 +1113,27 @@ view model =
                           else
                             span []
                                 [ b [ text "Decoded and re-encoded:" ]
-                                , pre []
-                                    [ text <|
-                                        encodeWrap
-                                            model.prettify
-                                            (decodeEncode model.replyThing)
-                                    , br
+                                , text " "
+                                , button
+                                    [ onClick ShowHideDecoded
+                                    , checked model.showDecoded
                                     ]
+                                    [ text <|
+                                        if model.showDecoded then
+                                            " Hide"
+                                        else
+                                            " Show"
+                                    ]
+                                , if model.showDecoded then
+                                    pre []
+                                        [ text <|
+                                            encodeWrap
+                                                model.prettify
+                                                (decodeEncode model.replyThing)
+                                        , br
+                                        ]
+                                  else
+                                    pre [] []
                                 ]
                         , b [ text <| model.replyType ++ ":" ]
                         , pre []
