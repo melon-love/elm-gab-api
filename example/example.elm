@@ -131,7 +131,7 @@ type alias Model =
     , postAfter : String
     , postId : String
     , post : Maybe Post
-    , showDecoded : Bool
+    , showRaw : Bool
     }
 
 
@@ -260,7 +260,7 @@ init location =
     , postAfter = ""
     , postId = ""
     , post = Nothing
-    , showDecoded = True
+    , showRaw = True
     }
         ! [ Http.send ReceiveAuthorization <|
                 getAuthorization False "authorization.json"
@@ -443,7 +443,7 @@ update msg model =
             { model | prettify = not model.prettify } ! []
 
         ShowHideDecoded ->
-            { model | showDecoded = not model.showDecoded } ! []
+            { model | showRaw = not model.showRaw } ! []
 
         ReceiveLocation _ ->
             model ! []
@@ -1098,48 +1098,53 @@ view model =
                                     ++ Gab.bodyToString 2 req.body
                             ]
                         ]
-            , case ( model.msg, model.reply ) of
-                ( Just msg, _ ) ->
+            , case ( model.msg, model.reply, canHideRaw model ) of
+                ( Just msg, _, _ ) ->
                     span []
                         [ b [ text "Error:" ]
                         , br
                         , pre [] [ text <| SE.softWrap 60 <| toString msg ]
                         ]
 
-                ( _, Just reply ) ->
+                ( _, Just reply, canHide ) ->
                     span []
-                        [ if model.replyThing == nullThing then
-                            text ""
-                          else
+                        [ b [ text <| model.replyType ++ ":" ]
+                        , if canHide then
                             span []
-                                [ b [ text "Decoded and re-encoded:" ]
-                                , text " "
+                                [ text " "
                                 , button
                                     [ onClick ShowHideDecoded
-                                    , checked model.showDecoded
+                                    , checked model.showRaw
                                     ]
                                     [ text <|
-                                        if model.showDecoded then
+                                        if model.showRaw then
                                             " Hide"
                                         else
                                             " Show"
                                     ]
-                                , if model.showDecoded then
-                                    pre []
-                                        [ text <|
-                                            encodeWrap
-                                                model.prettify
-                                                (decodeEncode model.replyThing)
-                                        , br
-                                        ]
-                                  else
-                                    pre [] []
                                 ]
-                        , b [ text <| model.replyType ++ ":" ]
-                        , pre []
-                            [ text <|
-                                encodeWrap model.prettify reply
-                            ]
+                          else
+                            text ""
+                        , if not canHide || model.showRaw then
+                            pre []
+                                [ text <|
+                                    encodeWrap model.prettify reply
+                                ]
+                          else
+                            pre [] []
+                        , if model.replyThing == nullThing then
+                            text ""
+                          else
+                            span []
+                                [ b [ text "Decoded and re-encoded:" ]
+                                , pre []
+                                    [ text <|
+                                        encodeWrap
+                                            model.prettify
+                                            (decodeEncode model.replyThing)
+                                    , br
+                                    ]
+                                ]
                         ]
 
                 _ ->
@@ -1149,6 +1154,11 @@ view model =
             ]
         , footerDiv model
         ]
+
+
+canHideRaw : Model -> Bool
+canHideRaw model =
+    model.reply /= Nothing && model.replyThing /= nullThing
 
 
 convertJsonNewlines : String -> String
