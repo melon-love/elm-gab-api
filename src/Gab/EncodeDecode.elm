@@ -11,19 +11,31 @@
 
 
 module Gab.EncodeDecode exposing
-    ( activityLogDecoder
-    , activityLogEncoder
-    , activityLogListDecoder
-    , activityLogListEncoder
-    , postDecoder
-    , postEncoder
-    , postListDecoder
-    , postListEncoder
-    , userDecoder
-    , userEncoder
-    , userListDecoder
-    , userListEncoder
+    ( activityLogDecoder, activityLogEncoder
+    , activityLogListDecoder, activityLogListEncoder
+    , userDecoder, userEncoder, userListDecoder, userListEncoder
+    , postDecoder, postEncoder, postListDecoder, postListEncoder
     )
+
+{-| Encoders and decoders for the types.
+
+
+# ActivityLog
+
+@docs activityLogDecoder, activityLogEncoder
+@docs activityLogListDecoder, activityLogListEncoder
+
+
+# User
+
+@docs userDecoder, userEncoder, userListDecoder, userListEncoder
+
+
+# Post
+
+@docs postDecoder, postEncoder, postListDecoder, postListEncoder
+
+-}
 
 import Gab.Types
     exposing
@@ -47,7 +59,7 @@ import Json.Decode.Pipeline as DP exposing (optional, required)
 import Json.Encode as JE exposing (Value)
 
 
-{-| Decode a User
+{-| Decode a `User`.
 -}
 userDecoder : Decoder User
 userDecoder =
@@ -141,7 +153,7 @@ maybeBool mx =
         JE.null
 
 
-{-| Encode a User
+{-| Encode a `User`.
 -}
 userEncoder : User -> Value
 userEncoder user =
@@ -198,6 +210,8 @@ userEncoder user =
             ]
 
 
+{-| Decode a list of `User`s.
+-}
 userListDecoder : Decoder UserList
 userListDecoder =
     JD.succeed UserList
@@ -205,6 +219,8 @@ userListDecoder =
         |> optional "no-more" bool True
 
 
+{-| Encode a list of `User`s.
+-}
 userListEncoder : UserList -> Value
 userListEncoder userList =
     JE.object
@@ -258,6 +274,8 @@ makePost id created_at revised_at edited body only_emoji liked disliked bookmark
     }
 
 
+{-| Decode a `Post`.
+-}
 postDecoder : Decoder Post
 postDecoder =
     JD.succeed makePost
@@ -296,6 +314,8 @@ postDecoder =
         |> required "replies" (JD.lazy (\_ -> recursivePostListDecoder))
 
 
+{-| Encode a `Post`.
+-}
 postEncoder : Post -> Value
 postEncoder post =
     JE.object <|
@@ -581,16 +601,22 @@ topicEncoder topic =
             ]
 
 
+{-| Decode a `PostList`.
+-}
 postListDecoder : Decoder PostList
 postListDecoder =
     JD.list postDecoder
 
 
+{-| Encode a `PostList`.
+-}
 postListEncoder : PostList -> Value
 postListEncoder postList =
     JE.list postEncoder postList
 
 
+{-| Decode an `ActivityLog`.
+-}
 activityLogDecoder : Decoder ActivityLog
 activityLogDecoder =
     JD.succeed ActivityLog
@@ -601,6 +627,8 @@ activityLogDecoder =
         |> required "post" (JD.lazy (\_ -> recursivePostDecoder))
 
 
+{-| Encode an `ActivityLog`.
+-}
 activityLogEncoder : ActivityLog -> Value
 activityLogEncoder log =
     JE.object
@@ -612,6 +640,8 @@ activityLogEncoder log =
         ]
 
 
+{-| Decode an `ActivityLogList`.
+-}
 activityLogListDecoder : Decoder ActivityLogList
 activityLogListDecoder =
     JD.succeed ActivityLogList
@@ -619,6 +649,8 @@ activityLogListDecoder =
         |> optional "no-more" JD.bool True
 
 
+{-| Encode an `ActivityLogList`.
+-}
 activityLogListEncoder : ActivityLogList -> Value
 activityLogListEncoder list =
     JE.object

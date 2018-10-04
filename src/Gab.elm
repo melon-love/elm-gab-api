@@ -11,43 +11,65 @@
 
 
 module Gab exposing
-    ( bodyToString
-    , dislikePost
-    , dislikePostParts
-    , doParts
-    , doPostsParts
-    , doUsersParts
-    , followUser
-    , followUserParts
-    , gabApiUri
-    , getParts
-    , getPost
-    , getPostParts
-    , homeFeed
-    , homeFeedParts
-    , likePost
-    , likePostParts
-    , me
-    , meParts
-    , muteUser
-    , muteUserParts
-    , popularFeed
-    , popularFeedParts
-    , popularUsers
-    , popularUsersParts
-    , repost
-    , repostParts
-    , request
-    , requestParts
-    , userFeed
-    , userFeedParts
-    , userFollowers
-    , userFollowersParts
-    , userFollowing
-    , userFollowingParts
-    , userProfile
-    , userProfileParts
+    ( gabApiUri, request, getParts, requestParts
+    , doParts, doUsersParts, doPostsParts
+    , me, meParts, userProfile, userProfileParts
+    , userFeed, userFeedParts
+    , userFollowers, userFollowersParts, userFollowing, userFollowingParts
+    , followUser, followUserParts, muteUser, muteUserParts
+    , homeFeed, homeFeedParts, popularFeed, popularFeedParts
+    , popularUsers, popularUsersParts
+    , getPost, getPostParts
+    , likePost, likePostParts, dislikePost, dislikePostParts
+    , repost, repostParts
+    , bodyToString
     )
+
+{-| Client for the Gab.com API, documented at [developers.gab.com](https://developers.gab.com/).
+
+This does NOT do authentication. You'll need to use [billstclair/elm-oauth-middleware](http://package.elm-lang.org/packages/billstclair/elm-oauth-middleware/latest) for that. See the `example` directory.
+
+
+# Http interface
+
+@docs gabApiUri, request, getParts, requestParts
+
+
+# Generic requests
+
+@docs doParts, doUsersParts, doPostsParts
+
+
+# Users
+
+@docs me, meParts, userProfile, userProfileParts
+@docs userFeed, userFeedParts
+@docs userFollowers, userFollowersParts, userFollowing, userFollowingParts
+
+
+# User modification
+
+@docs followUser, followUserParts, muteUser, muteUserParts
+
+
+# Feeds
+
+@docs homeFeed, homeFeedParts, popularFeed, popularFeedParts
+@docs popularUsers, popularUsersParts
+
+
+# Posts
+
+@docs getPost, getPostParts
+@docs likePost, likePostParts, dislikePost, dislikePostParts
+@docs repost, repostParts
+
+
+# Debugging
+
+@docs bodyToString
+
+-}
 
 import Gab.EncodeDecode as ED
 import Gab.Types exposing (ActivityLogList, HttpBody(..), Post, RequestParts, User, UserList)
@@ -62,7 +84,7 @@ import Url.Builder as Builder
 -}
 gabApiUri : String
 gabApiUri =
-    "https://api.gab.ai/v1.0/"
+    "https://api.gab.com/v1.0/"
 
 
 {-| General-purpose `Http.Request` constructor.
@@ -126,6 +148,8 @@ realizeBody body =
             bod
 
 
+{-| Turn parts into a ready-to-send `Http.Request`.
+-}
 request : RequestParts a -> Http.Request a
 request parts =
     Http.request

@@ -11,31 +11,55 @@
 
 
 module Gab.Types exposing
-    ( ActivityLog
-    , ActivityLogList
-    , Attachment(..)
-    , CategoryDetails
-    , Embed
-    , HttpBody(..)
-    , MediaRecord
-    , Post
-    , PostList
-    , PostResult
-    , PostResultState(..)
-    , RelatedPosts(..)
-    , RequestParts
-    , Topic
-    , UnknownAttachmentRecord
-    , UrlRecord
-    , User
-    , UserList
+    ( RequestParts, HttpBody(..)
+    , PostResult, PostResultState(..)
+    , User, UserList
+    , ActivityLog, ActivityLogList
+    , Post, PostList
+    , Embed, CategoryDetails, Topic, RelatedPosts(..)
+    , Attachment(..), UrlRecord, MediaRecord, UnknownAttachmentRecord
     )
+
+{-| Shared Types for the Gab API.
+
+
+# Http Requests
+
+@docs RequestParts, HttpBody
+
+
+# Http Results
+
+@docs PostResult, PostResultState
+
+
+# Users
+
+@docs User, UserList
+
+
+# Activity Logs
+
+@docs ActivityLog, ActivityLogList
+
+
+# Posts
+
+@docs Post, PostList
+@docs Embed, CategoryDetails, Topic, RelatedPosts
+
+
+# Attachments
+
+@docs Attachment, UrlRecord, MediaRecord, UnknownAttachmentRecord
+
+-}
 
 import Http
 import Json.Encode exposing (Value)
 
 
-{-| A union type for request bodies
+{-| A custom type for request bodies.
 -}
 type HttpBody
     = EmptyBody
@@ -44,7 +68,7 @@ type HttpBody
     | OtherBody Http.Body
 
 
-{-| A non-opaque representation of an Http.Request
+{-| Names the argument to `Http.request`.
 -}
 type alias RequestParts a =
     { method : String
@@ -57,6 +81,8 @@ type alias RequestParts a =
     }
 
 
+{-| Details of a Gab user.
+-}
 type alias User =
     { id : Int
     , name : String
@@ -111,12 +137,16 @@ type alias User =
     }
 
 
+{-| A list of `User` records.
+-}
 type alias UserList =
     { data : List User
     , no_more : Bool
     }
 
 
+{-| Part of a `Post`.
+-}
 type RelatedPosts
     = RelatedPosts
         { parent : Maybe Post
@@ -124,6 +154,8 @@ type RelatedPosts
         }
 
 
+{-| One post returned from one of the feed reader functions.
+-}
 type alias Post =
     { id : Int
     , created_at : String
@@ -158,6 +190,8 @@ type alias Post =
     }
 
 
+{-| Details of a `UrlAttachment`.
+-}
 type alias UrlRecord =
     { image : String
     , title : Maybe String
@@ -167,6 +201,8 @@ type alias UrlRecord =
     }
 
 
+{-| Details for a `MediaAttachment`.
+-}
 type alias MediaRecord =
     { id : String
     , url_thumbnail : String
@@ -176,12 +212,16 @@ type alias MediaRecord =
     }
 
 
+{-| Data about an `UnknownAttachment`.
+-}
 type alias UnknownAttachmentRecord =
     { type_ : String
     , value : Value
     }
 
 
+{-| Attachment to a `Post`.
+-}
 type Attachment
     = NoAttachment --type == null
       --type == "url"
@@ -196,6 +236,8 @@ type Attachment
     | UnknownAttachment UnknownAttachmentRecord
 
 
+{-| Category details in a `Post`.
+-}
 type alias CategoryDetails =
     { title : String
     , slug : String
@@ -204,12 +246,16 @@ type alias CategoryDetails =
     }
 
 
+{-| Embed in a `Post`.
+-}
 type alias Embed =
     { html : String
     , iframe : Bool
     }
 
 
+{-| The topic of a `Post`.
+-}
 type alias Topic =
     { id : String
     , created_at : String
@@ -220,12 +266,14 @@ type alias Topic =
     }
 
 
-{-| A list of Post.
+{-| A list of `Post` instances.
 -}
 type alias PostList =
     List Post
 
 
+{-| One element of the list returned from the feed reading functions.
+-}
 type alias ActivityLog =
     { id : String
     , published_at : String
@@ -235,6 +283,8 @@ type alias ActivityLog =
     }
 
 
+{-| A list of `ActivityLog` instances.
+-}
 type alias ActivityLogList =
     { data : List ActivityLog
     , no_more : Bool

@@ -33,6 +33,7 @@ maybeLog : String -> a -> a
 maybeLog label value =
     if enableLogging then
         log label value
+
     else
         value
 
@@ -46,7 +47,7 @@ expectResult sb was =
                     Expect.true "You shouldn't ever see this." True
 
                 Ok _ ->
-                    Expect.false (toString err) True
+                    Expect.false (Debug.toString err) True
 
         Ok wasv ->
             case sb of
