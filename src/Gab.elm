@@ -11,17 +11,18 @@
 
 
 module Gab exposing
-    ( gabApiUri, request, getParts, requestParts
-    , doParts, doUsersParts, doPostsParts
-    , me, meParts, userProfile, userProfileParts
-    , userFeed, userFeedParts
+    ( me, meParts, userProfile, userProfileParts
     , userFollowers, userFollowersParts, userFollowing, userFollowingParts
     , followUser, followUserParts, muteUser, muteUserParts
-    , homeFeed, homeFeedParts, popularFeed, popularFeedParts
+    , homeFeed, homeFeedParts
+    , userFeed, userFeedParts
+    , popularFeed, popularFeedParts
     , popularUsers, popularUsersParts
     , getPost, getPostParts
     , likePost, likePostParts, dislikePost, dislikePostParts
     , repost, repostParts
+    , doParts, doUsersParts, doPostsParts
+    , gabApiUri, request, getParts, requestParts
     , bodyToString
     )
 
@@ -29,21 +30,25 @@ module Gab exposing
 
 This does NOT do authentication. You'll need to use [billstclair/elm-oauth-middleware](http://package.elm-lang.org/packages/billstclair/elm-oauth-middleware/latest) for that. See the `example` directory.
 
+The requests all come in two flavors, one which has the decoder built in, and returns an `Http.Request`, and one for which you provide your own decoder, and returns `RequestParts`. E.g.:
 
-# Http interface
+    getTorbaRequest : OAuth.Token -> Http.Request User
+    getTorbaRequest token =
+        userProfile token "a"
 
-@docs gabApiUri, request, getParts, requestParts
+    getTorbaParts : OAuth.Token -> RequestParts Json.Decode.Value
+    getTorbaParts token =
+        userProfileParts Json.Decode.value token "a"
 
-
-# Generic requests
-
-@docs doParts, doUsersParts, doPostsParts
+    getTorbaRequestFromParts : OAuth.Token -> Http.Request Json.Decode.Value
+    getTorbaRequestFromParts token =
+        getTorbaParts token
+            |> request
 
 
 # Users
 
 @docs me, meParts, userProfile, userProfileParts
-@docs userFeed, userFeedParts
 @docs userFollowers, userFollowersParts, userFollowing, userFollowingParts
 
 
@@ -54,7 +59,9 @@ This does NOT do authentication. You'll need to use [billstclair/elm-oauth-middl
 
 # Feeds
 
-@docs homeFeed, homeFeedParts, popularFeed, popularFeedParts
+@docs homeFeed, homeFeedParts
+@docs userFeed, userFeedParts
+@docs popularFeed, popularFeedParts
 @docs popularUsers, popularUsersParts
 
 
@@ -63,6 +70,16 @@ This does NOT do authentication. You'll need to use [billstclair/elm-oauth-middl
 @docs getPost, getPostParts
 @docs likePost, likePostParts, dislikePost, dislikePostParts
 @docs repost, repostParts
+
+
+# Generic requests
+
+@docs doParts, doUsersParts, doPostsParts
+
+
+# Low-level Http interface
+
+@docs gabApiUri, request, getParts, requestParts
 
 
 # Debugging

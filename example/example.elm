@@ -12,8 +12,10 @@
 ----------------------------------------------------------------------
 
 
-module GabAPIExample exposing (..)
+module GabAPIExample exposing (main)
 
+import Browser exposing (Document, UrlRequest)
+import Browser.Navigation as Navigation exposing (Key)
 import Char
 import Dict exposing (Dict)
 import Gab
@@ -62,7 +64,6 @@ import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode as JD exposing (Decoder, Value)
 import Json.Encode as JE
-import Navigation exposing (Location)
 import OAuth exposing (Token(..))
 import OAuthMiddleware
     exposing
@@ -83,6 +84,7 @@ import OAuthMiddleware.EncodeDecode
         )
 import String
 import String.Extra as SE
+import Url exposing (Url)
 
 
 type Thing
@@ -108,7 +110,7 @@ allScopes =
 
 
 type alias Model =
-    { authorization : Maybe Authorization
+    { key : Key
     , scopes : List String
     , receivedScopes : List String
     , token : Maybe ResponseToken
@@ -136,7 +138,8 @@ type alias Model =
 
 
 type Msg
-    = ReceiveLocation Location
+    = HandleUrlRequest UrlRequest
+    | HandleUrlChange Url
     | ReceiveAuthorization (Result Http.Error Authorization)
     | ReceiveLoggedInUser (Result Http.Error User)
     | Login
@@ -201,20 +204,21 @@ apis =
 
 
 main =
-    Navigation.program
-        ReceiveLocation
+    Browser.application
         { init = init
-        , update = update
         , view = view
+        , update = update
         , subscriptions = \_ -> Sub.none
+        , onUrlRequest = HandleUrlRequest
+        , onUrlChange = HandleUrlChange
         }
 
 
-init : Location -> ( Model, Cmd Msg )
-init location =
+init : () -> Url -> Key -> ( Model, Cmd Msg )
+init _ url key =
     let
         ( token, state, msg ) =
-            case receiveTokenAndState location of
+            case receiveTokenAndState url of
                 TokenAndState tok stat ->
                     ( Just tok, stat, Nothing )
 
@@ -237,45 +241,49 @@ init location =
                     , tok.scope
                     )
     in
-    { token = token
-    , state = state
-    , msg = msg
-    , request = Nothing
-    , loggedInUser = Nothing
-    , replyType = "Token"
-    , replyThing =
-        ValueThing JE.null
-    , reply = reply
-    , redirectBackUri = locationToRedirectBackUri location
-    , authorization = Nothing
-    , scopes = scopes
-    , receivedScopes = scopes
-    , tokenAuthorization = Nothing
-    , prettify = True
-    , username = "xossbow"
-    , userBefore = 0
-    , userProfile = Nothing
-    , postUser = "xossbow"
-    , postBefore = ""
-    , postAfter = ""
-    , postId = ""
-    , post = Nothing
-    , showRaw = True
-    }
-        ! [ Http.send ReceiveAuthorization <|
-                getAuthorization False "authorization.json"
-          , Navigation.modifyUrl "#"
-          ]
+    ( { key = key
+      , token = token
+      , state = state
+      , msg = msg
+      , request = Nothing
+      , loggedInUser = Nothing
+      , replyType = "Token"
+      , replyThing =
+            ValueThing JE.null
+      , reply = reply
+      , redirectBackUri = locationToRedirectBackUri url
+      , authorization = Nothing
+      , scopes = scopes
+      , receivedScopes = scopes
+      , tokenAuthorization = Nothing
+      , prettify = True
+      , username = "xossbow"
+      , userBefore = 0
+      , userProfile = Nothing
+      , postUser = "xossbow"
+      , postBefore = ""
+      , postAfter = ""
+      , postId = ""
+      , post = Nothing
+      , showRaw = True
+      }
+    , Cmd.batch
+        [ Http.send ReceiveAuthorization <|
+            getAuthorization False "authorization.json"
+        , Navigation.replaceUrl key "#"
+        ]
+    )
 
 
 get : Model -> (Result Http.Error Value -> Msg) -> (OAuth.Token -> RequestParts Value) -> ( Model, Cmd Msg )
 get model receiver makeRequest =
     case model.token of
         Nothing ->
-            { model
+            ( { model
                 | msg = Just "You must login before getting logged-in user information."
-            }
-                ! []
+              }
+            , Cmd.none
+            )
 
         Just token ->
             case model.authorization of
@@ -284,16 +292,18 @@ get model receiver makeRequest =
                         req =
                             makeRequest token.token
                     in
-                    { model
+                    ( { model
                         | request = Just req
                         , replyThing = nullThing
                         , reply = Nothing
-                    }
-                        ! [ Http.send receiver <| Gab.request req ]
+                      }
+                    , Http.send receiver <| Gab.request req
+                    )
 
                 _ ->
-                    { model | msg = Just "No authorization loaded." }
-                        ! []
+                    ( { model | msg = Just "No authorization loaded." }
+                    , Cmd.none
+                    )
 
 
 getMe : Model -> ( Model, Cmd Msg )
@@ -395,64 +405,90 @@ lookupProvider model =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        HandleUrlRequest request ->
+            ( model, Cmd.none )
+
+        HandleUrlChange url ->
+            ( model, Cmd.none )
+
         ToggleScope scope ->
             let
                 scopes =
                     if List.member scope model.scopes then
                         List.filter ((/=) scope) model.scopes
+
                     else
                         scope :: model.scopes
             in
-            { model | scopes = scopes } ! []
+            ( { model | scopes = scopes }
+            , Cmd.none
+            )
 
         SetUsername username ->
-            { model
+            ( { model
                 | username = username
                 , userProfile = Nothing
-            }
-                ! []
+              }
+            , Cmd.none
+            )
 
         SetUserBefore before ->
             case String.toInt before of
-                Err _ ->
+                Nothing ->
                     if before == "" then
-                        { model | userBefore = 0 } ! []
-                    else
-                        model ! []
+                        ( { model | userBefore = 0 }
+                        , Cmd.none
+                        )
 
-                Ok a ->
-                    { model | userBefore = a } ! []
+                    else
+                        ( model
+                        , Cmd.none
+                        )
+
+                Just a ->
+                    ( { model | userBefore = a }
+                    , Cmd.none
+                    )
 
         SetPostUser postUser ->
-            { model | postUser = postUser } ! []
+            ( { model | postUser = postUser }
+            , Cmd.none
+            )
 
         SetPostBefore before ->
-            { model | postBefore = before } ! []
+            ( { model | postBefore = before }
+            , Cmd.none
+            )
 
         SetPostAfter after ->
-            { model | postAfter = after } ! []
+            ( { model | postAfter = after }
+            , Cmd.none
+            )
 
         SetPostId id ->
-            { model
+            ( { model
                 | postId = id
                 , post = Nothing
-            }
-                ! []
+              }
+            , Cmd.none
+            )
 
         TogglePrettify ->
-            { model | prettify = not model.prettify } ! []
+            ( { model | prettify = not model.prettify }
+            , Cmd.none
+            )
 
         ShowHideDecoded ->
-            { model | showRaw = not model.showRaw } ! []
-
-        ReceiveLocation _ ->
-            model ! []
+            ( { model | showRaw = not model.showRaw }
+            , Cmd.none
+            )
 
         ReceiveAuthorization result ->
             case result of
                 Err err ->
-                    { model | msg = Just <| toString err }
-                        ! []
+                    ( { model | msg = Just <| Debug.toString err }
+                    , Cmd.none
+                    )
 
                 Ok authorization ->
                     let
@@ -475,12 +511,13 @@ update msg model =
                                     , model.replyThing
                                     )
                     in
-                    lookupProvider
+                    ( lookupProvider
                         { model
                             | authorization = Just authorization
                             , scopes =
                                 if model.token == Nothing then
                                     List.map Tuple.second <| Dict.toList authorization.scopes
+
                                 else
                                     model.scopes
                             , request = Nothing
@@ -488,7 +525,8 @@ update msg model =
                             , replyThing = replyThing
                             , reply = reply
                         }
-                        ! (case model.token of
+                    , Cmd.batch
+                        (case model.token of
                             Nothing ->
                                 []
 
@@ -496,29 +534,37 @@ update msg model =
                                 [ Http.send ReceiveLoggedInUser <|
                                     Gab.me token.token
                                 ]
-                          )
+                        )
+                    )
 
         ReceiveLoggedInUser result ->
             case result of
                 Err _ ->
-                    { model | msg = Just "Error getting logged-in user name." }
-                        ! []
+                    ( { model | msg = Just "Error getting logged-in user name." }
+                    , Cmd.none
+                    )
 
                 Ok user ->
-                    { model | loggedInUser = Just user.username }
-                        ! []
+                    ( { model | loggedInUser = Just user.username }
+                    , Cmd.none
+                    )
 
         Login ->
             case model.tokenAuthorization of
                 Nothing ->
-                    { model | msg = Just "No provider selected." }
-                        ! []
+                    ( { model | msg = Just "No provider selected." }
+                    , Cmd.none
+                    )
 
                 Just authorization ->
-                    model
-                        ! [ authorize
-                                { authorization | scope = model.scopes }
-                          ]
+                    ( model
+                    , case authorize { authorization | scope = model.scopes } of
+                        Nothing ->
+                            Cmd.none
+
+                        Just url ->
+                            Navigation.load <| Url.toString url
+                    )
 
         GetMe ->
             getMe model
@@ -572,6 +618,7 @@ receiveUserThing save result model =
         mod =
             if not save then
                 model
+
             else
                 case result of
                     Err _ ->
@@ -611,27 +658,29 @@ receiveThing : (Value -> Thing) -> Result Http.Error Value -> Model -> ( Model, 
 receiveThing thingTag result model =
     case result of
         Err err ->
-            { model
+            ( { model
                 | reply = Nothing
-                , msg = Just <| toString err
-            }
-                ! []
+                , msg = Just <| Debug.toString err
+              }
+            , Cmd.none
+            )
 
         Ok reply ->
-            { model
+            ( { model
                 | replyType = "API Response"
                 , reply = Just reply
                 , replyThing = thingTag reply
                 , msg = Nothing
-            }
-                ! []
+              }
+            , Cmd.none
+            )
 
 
 doDecodeEncode : Decoder a -> (a -> Value) -> Value -> Value
 doDecodeEncode decoder encoder value =
     case JD.decodeValue decoder value of
         Err msg ->
-            JE.string msg
+            JE.string <| JD.errorToString msg
 
         Ok thing ->
             encoder thing
@@ -695,6 +744,7 @@ usernameUrl model =
     userUrl <|
         if model.username == "" then
             Nothing
+
         else
             Just model.username
 
@@ -704,6 +754,7 @@ postUserUrl model =
     userUrl <|
         if model.postUser == "" then
             Nothing
+
         else
             Just model.postUser
 
@@ -741,13 +792,25 @@ scopeCheckboxes model =
             allScopes
 
 
-view : Model -> Html Msg
+pageTitle : String
+pageTitle =
+    "Gap API Example"
+
+
+view : Model -> Document Msg
 view model =
+    { title = pageTitle
+    , body = [ pageBody model ]
+    }
+
+
+pageBody : Model -> Html Msg
+pageBody model =
     div
-        [ style [ ( "margin-left", "3em" ) ]
+        [ style "margin-left" "3em"
         ]
         [ div []
-            [ h2 [] [ text "Gab API Example" ]
+            [ h2 [] [ text pageTitle ]
             , p []
                 [ scopeCheckboxes model
                 , br
@@ -756,6 +819,7 @@ view model =
                 ]
             , if model.token == Nothing then
                 text ""
+
               else
                 p []
                     [ h3 [] [ text "User Information" ]
@@ -799,7 +863,7 @@ view model =
                                 , input
                                     [ size 3
                                     , onInput SetUserBefore
-                                    , value <| toString model.userBefore
+                                    , value <| String.fromInt model.userBefore
                                     ]
                                     []
                                 ]
@@ -822,15 +886,17 @@ view model =
                             ]
                         , tr [] <|
                             let
-                                ( isDisabled, theTitle, unfollow, followText, unmute, muteText ) =
+                                ( ( isDisabled, theTitle, unfollow ), ( followText, unmute, muteText ) ) =
                                     case model.userProfile of
                                         Nothing ->
-                                            ( True
-                                            , "Click \"Get Profile\" to enable."
-                                            , True
-                                            , "(Un)Follow"
-                                            , True
-                                            , "(Un)Mute"
+                                            ( ( True
+                                              , "Click \"Get Profile\" to enable."
+                                              , True
+                                              )
+                                            , ( "(Un)Follow"
+                                              , True
+                                              , "(Un)Mute"
+                                              )
                                             )
 
                                         Just user ->
@@ -838,20 +904,24 @@ view model =
                                                 following =
                                                     user.following || user.follow_pending
                                             in
-                                            ( False
-                                            , ""
-                                            , following
-                                            , if following then
-                                                "Unfollow"
-                                              else
-                                                "Follow"
-                                            , True
-                                            , "Mute"
+                                            ( ( False
+                                              , ""
+                                              , following
+                                              )
+                                            , ( if following then
+                                                    "Unfollow"
+
+                                                else
+                                                    "Follow"
+                                              , True
+                                              , "Mute"
+                                              )
                                             )
                             in
                             [ td [ colspan 2 ]
                                 [ if List.member "engage-user" model.receivedScopes then
                                     text ""
+
                                   else
                                     span []
                                         [ text nbsp2
@@ -876,6 +946,7 @@ view model =
                                     [ text muteText ]
                                 , if isDisabled then
                                     text ""
+
                                   else
                                     span []
                                         [ text " "
@@ -989,17 +1060,20 @@ view model =
                                 ]
                             , tr [] <|
                                 let
-                                    ( isDisabled, theTitle, unlike, likeText, undislike, dislikeText, unrepost, repostText ) =
+                                    ( ( isDisabled, theTitle, unlike ), ( likeText, undislike, dislikeText ), ( unrepost, repostText ) ) =
                                         case model.post of
                                             Nothing ->
-                                                ( True
-                                                , "Click \"Get\" to enable."
-                                                , True
-                                                , "(Un)Like"
-                                                , True
-                                                , "(Un)Dislike"
-                                                , True
-                                                , "(Un)Repost"
+                                                ( ( True
+                                                  , "Click \"Get\" to enable."
+                                                  , True
+                                                  )
+                                                , ( "(Un)Like"
+                                                  , True
+                                                  , "(Un)Dislike"
+                                                  )
+                                                , ( True
+                                                  , "(Un)Repost"
+                                                  )
                                                 )
 
                                             Just post ->
@@ -1013,28 +1087,35 @@ view model =
                                                     reposted =
                                                         post.repost
                                                 in
-                                                ( False
-                                                , ""
-                                                , liked
-                                                , if liked then
-                                                    "Unlike"
-                                                  else
-                                                    "Like"
-                                                , disliked
-                                                , if disliked then
-                                                    "Undislike"
-                                                  else
-                                                    "Dislike"
-                                                , reposted
-                                                , if reposted then
-                                                    "Unrepost"
-                                                  else
-                                                    "Repost"
+                                                ( ( False
+                                                  , ""
+                                                  , liked
+                                                  )
+                                                , ( if liked then
+                                                        "Unlike"
+
+                                                    else
+                                                        "Like"
+                                                  , disliked
+                                                  , if disliked then
+                                                        "Undislike"
+
+                                                    else
+                                                        "Dislike"
+                                                  )
+                                                , ( reposted
+                                                  , if reposted then
+                                                        "Unrepost"
+
+                                                    else
+                                                        "Repost"
+                                                  )
                                                 )
                                 in
                                 [ td [ colspan 2 ]
                                     [ if List.member "engage-post" model.receivedScopes then
                                         text ""
+
                                       else
                                         span []
                                             [ text nbsp4
@@ -1103,7 +1184,7 @@ view model =
                     span []
                         [ b [ text "Error:" ]
                         , br
-                        , pre [] [ text <| SE.softWrap 60 <| toString msg ]
+                        , pre [] [ text <| SE.softWrap 60 msg ]
                         ]
 
                 ( _, Just reply, canHide ) ->
@@ -1119,10 +1200,12 @@ view model =
                                     [ text <|
                                         if model.showRaw then
                                             " Hide"
+
                                         else
                                             " Show"
                                     ]
                                 ]
+
                           else
                             text ""
                         , if not canHide || model.showRaw then
@@ -1130,10 +1213,12 @@ view model =
                                 [ text <|
                                     encodeWrap model.prettify reply
                                 ]
+
                           else
                             pre [] []
                         , if model.replyThing == nullThing then
                             text ""
+
                           else
                             span []
                                 [ b [ text "Decoded and re-encoded:" ]
@@ -1163,8 +1248,8 @@ canHideRaw model =
 
 convertJsonNewlines : String -> String
 convertJsonNewlines json =
-    SE.replace "\\r" "" json
-        |> SE.replace "\\n" "\n"
+    String.replace "\\r" "" json
+        |> String.replace "\\n" "\n"
 
 
 wrapJsonLine : Int -> String -> List String
@@ -1212,6 +1297,7 @@ encodeWrap prettify value =
     JE.encode 2 value
         |> (if prettify then
                 wrapJsonLines 80
+
             else
                 identity
            )

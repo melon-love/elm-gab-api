@@ -12,7 +12,7 @@
 ----------------------------------------------------------------------
 
 
-module Main exposing (..)
+module Main exposing (Model, Msg(..), b, br, btext, gabOasFile, init, main, openapi30File, update, view)
 
 import Html
     exposing
@@ -112,7 +112,7 @@ btext str =
 view : Model -> Html Msg
 view model =
     div
-        [ style [ ( "margin-left", "3em" ) ]
+        [ style "margin-left" "3em"
         ]
         [ h2 [] [ text "Gab OAS Json Decode Test" ]
         , p []
