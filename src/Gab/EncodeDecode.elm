@@ -10,21 +10,20 @@
 ----------------------------------------------------------------------
 
 
-module Gab.EncodeDecode
-    exposing
-        ( activityLogDecoder
-        , activityLogEncoder
-        , activityLogListDecoder
-        , activityLogListEncoder
-        , postDecoder
-        , postEncoder
-        , postListDecoder
-        , postListEncoder
-        , userDecoder
-        , userEncoder
-        , userListDecoder
-        , userListEncoder
-        )
+module Gab.EncodeDecode exposing
+    ( activityLogDecoder
+    , activityLogEncoder
+    , activityLogListDecoder
+    , activityLogListEncoder
+    , postDecoder
+    , postEncoder
+    , postListDecoder
+    , postListEncoder
+    , userDecoder
+    , userEncoder
+    , userListDecoder
+    , userListEncoder
+    )
 
 import Gab.Types
     exposing
@@ -52,7 +51,7 @@ import Json.Encode as JE exposing (Value)
 -}
 userDecoder : Decoder User
 userDecoder =
-    DP.decode User
+    JD.succeed User
         |> required "id" int
         |> required "name" string
         |> required "username" string
@@ -137,6 +136,7 @@ maybeBool : Bool -> Value
 maybeBool mx =
     if mx then
         JE.bool mx
+
     else
         JE.null
 
@@ -200,7 +200,7 @@ userEncoder user =
 
 userListDecoder : Decoder UserList
 userListDecoder =
-    DP.decode UserList
+    JD.succeed UserList
         |> required "data" (JD.list userDecoder)
         |> optional "no-more" bool True
 
@@ -208,7 +208,7 @@ userListDecoder =
 userListEncoder : UserList -> Value
 userListEncoder userList =
     JE.object
-        [ ( "data", JE.list <| List.map userEncoder userList.data )
+        [ ( "data", JE.list userEncoder userList.data )
         , ( "no-more", JE.bool userList.no_more )
         ]
 
@@ -260,7 +260,7 @@ makePost id created_at revised_at edited body only_emoji liked disliked bookmark
 
 postDecoder : Decoder Post
 postDecoder =
-    DP.decode makePost
+    JD.succeed makePost
         |> required "id" int
         |> required "created_at" string
         |> optional "revised_at" (JD.nullable string) Nothing
@@ -349,7 +349,7 @@ relatedPostsFields related =
                         [ ( "parent", postEncoder post ) ]
                 , [ ( "replies"
                     , JE.object
-                        [ ( "data", JE.list <| List.map postEncoder replies ) ]
+                        [ ( "data", JE.list postEncoder replies ) ]
                     )
                   ]
                 ]
@@ -401,7 +401,7 @@ type alias RawAttachment =
 
 urlAttachmentDecoder : Decoder Attachment
 urlAttachmentDecoder =
-    DP.decode UrlRecord
+    JD.succeed UrlRecord
         |> required "image" string
         |> required "title" (JD.nullable string)
         |> required "description" (JD.nullable string)
@@ -412,7 +412,7 @@ urlAttachmentDecoder =
 
 mediaAttachmentDecoder : Decoder Attachment
 mediaAttachmentDecoder =
-    DP.decode MediaRecord
+    JD.succeed MediaRecord
         |> required "id" string
         |> required "url_thumbnail" string
         |> required "url_full" string
@@ -429,7 +429,7 @@ tryDecoder decoder value wrapper =
             JD.succeed <| wrapper a
 
         Err msg ->
-            JD.fail msg
+            JD.fail <| JD.errorToString msg
 
 
 rawAttachmentDecoder : RawAttachment -> Decoder Attachment
@@ -487,7 +487,7 @@ attachmentEncoder attachment =
             JE.object
                 [ ( "type", JE.string "media" )
                 , ( "value"
-                  , JE.list <| List.map mediaRecordEncoder media
+                  , JE.list mediaRecordEncoder media
                   )
                 ]
 
@@ -534,7 +534,7 @@ mediaRecordEncoder record =
 
 categoryDetailsDecoder : Decoder CategoryDetails
 categoryDetailsDecoder =
-    DP.decode CategoryDetails
+    JD.succeed CategoryDetails
         |> required "title" string
         |> required "slug" string
         |> required "value" int
@@ -553,7 +553,7 @@ categoryDetailsEncoder details =
 
 topicDecoder : Decoder Topic
 topicDecoder =
-    DP.decode Topic
+    JD.succeed Topic
         |> required "id" string
         |> required "created_at" string
         |> required "is_featured" bool
@@ -588,12 +588,12 @@ postListDecoder =
 
 postListEncoder : PostList -> Value
 postListEncoder postList =
-    JE.list <| List.map postEncoder postList
+    JE.list postEncoder postList
 
 
 activityLogDecoder : Decoder ActivityLog
 activityLogDecoder =
-    DP.decode ActivityLog
+    JD.succeed ActivityLog
         |> required "id" string
         |> required "published_at" string
         |> required "type" string
@@ -614,7 +614,7 @@ activityLogEncoder log =
 
 activityLogListDecoder : Decoder ActivityLogList
 activityLogListDecoder =
-    DP.decode ActivityLogList
+    JD.succeed ActivityLogList
         |> required "data" (JD.list activityLogDecoder)
         |> optional "no-more" JD.bool True
 
@@ -622,6 +622,6 @@ activityLogListDecoder =
 activityLogListEncoder : ActivityLogList -> Value
 activityLogListEncoder list =
     JE.object
-        [ ( "data", JE.list <| List.map activityLogEncoder list.data )
+        [ ( "data", JE.list activityLogEncoder list.data )
         , ( "no-more", JE.bool list.no_more )
         ]

@@ -10,53 +10,52 @@
 ----------------------------------------------------------------------
 
 
-module Gab
-    exposing
-        ( bodyToString
-        , dislikePost
-        , dislikePostParts
-        , doParts
-        , doPostsParts
-        , doUsersParts
-        , followUser
-        , followUserParts
-        , gabApiUri
-        , getParts
-        , getPost
-        , getPostParts
-        , homeFeed
-        , homeFeedParts
-        , likePost
-        , likePostParts
-        , me
-        , meParts
-        , muteUser
-        , muteUserParts
-        , popularFeed
-        , popularFeedParts
-        , popularUsers
-        , popularUsersParts
-        , repost
-        , repostParts
-        , request
-        , requestParts
-        , userFeed
-        , userFeedParts
-        , userFollowers
-        , userFollowersParts
-        , userFollowing
-        , userFollowingParts
-        , userProfile
-        , userProfileParts
-        )
+module Gab exposing
+    ( bodyToString
+    , dislikePost
+    , dislikePostParts
+    , doParts
+    , doPostsParts
+    , doUsersParts
+    , followUser
+    , followUserParts
+    , gabApiUri
+    , getParts
+    , getPost
+    , getPostParts
+    , homeFeed
+    , homeFeedParts
+    , likePost
+    , likePostParts
+    , me
+    , meParts
+    , muteUser
+    , muteUserParts
+    , popularFeed
+    , popularFeedParts
+    , popularUsers
+    , popularUsersParts
+    , repost
+    , repostParts
+    , request
+    , requestParts
+    , userFeed
+    , userFeedParts
+    , userFollowers
+    , userFollowersParts
+    , userFollowing
+    , userFollowingParts
+    , userProfile
+    , userProfileParts
+    )
 
-import Erl.Query
 import Gab.EncodeDecode as ED
 import Gab.Types exposing (ActivityLogList, HttpBody(..), Post, RequestParts, User, UserList)
 import Http
 import Json.Decode as JD exposing (Decoder)
 import Json.Encode as JE exposing (Value)
 import OAuth exposing (Token)
+import Url.Builder as Builder
 
 
 {-| The base URI for GAB API requests. Automatically prepended to `path` args.
@@ -84,7 +83,7 @@ gabApiUri =
 requestParts : String -> List Http.Header -> HttpBody -> Decoder a -> Token -> String -> RequestParts a
 requestParts method headers body decoder token path =
     { method = method
-    , headers = OAuth.use token headers
+    , headers = OAuth.useToken token headers
     , url = gabApiUri ++ path
     , body = body
     , expect = Http.expectJson decoder
@@ -123,8 +122,8 @@ realizeBody body =
         StringBody mimetype string ->
             Http.stringBody mimetype string
 
-        OtherBody body ->
-            body
+        OtherBody bod ->
+            bod
 
 
 request : RequestParts a -> Http.Request a
@@ -191,8 +190,9 @@ userXxxParts xxx decoder token username before =
         path =
             if before <= 0 then
                 prefix
+
             else
-                prefix ++ "?before=" ++ toString before
+                prefix ++ "?before=" ++ String.fromInt before
     in
     getParts decoder token path
 
@@ -303,6 +303,7 @@ doParts prefix operation decoder token identifier undo =
         method =
             if undo then
                 "DELETE"
+
             else
                 "POST"
 
@@ -352,21 +353,22 @@ muteUserParts =
 beforeAfterParts : String -> Decoder a -> Token -> String -> String -> RequestParts a
 beforeAfterParts prefix decoder token before after =
     let
-        query =
-            []
-                |> (if before == "" then
-                        identity
-                    else
-                        Erl.Query.add "before" before
-                   )
-                |> (if after == "" then
-                        identity
-                    else
-                        Erl.Query.add "after" after
-                   )
+        queries =
+            List.concat
+                [ if before == "" then
+                    []
+
+                  else
+                    [ Builder.string "before" before ]
+                , if after == "" then
+                    []
+
+                  else
+                    [ Builder.string "after" after ]
+                ]
 
         path =
-            prefix ++ Erl.Query.toString query
+            prefix ++ Builder.toQuery queries
     in
     getParts decoder token path
 

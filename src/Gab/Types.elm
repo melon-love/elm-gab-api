@@ -10,31 +10,29 @@
 ----------------------------------------------------------------------
 
 
-module Gab.Types
-    exposing
-        ( ActivityLog
-        , ActivityLogList
-        , Attachment(..)
-        , CategoryDetails
-        , Embed
-        , HttpBody(..)
-        , MediaRecord
-        , Post
-        , PostList
-        , PostResult
-        , PostResultState(..)
-        , RelatedPosts(..)
-        , RequestParts
-        , Topic
-        , UnknownAttachmentRecord
-        , UrlRecord
-        , User
-        , UserList
-        )
+module Gab.Types exposing
+    ( ActivityLog
+    , ActivityLogList
+    , Attachment(..)
+    , CategoryDetails
+    , Embed
+    , HttpBody(..)
+    , MediaRecord
+    , Post
+    , PostList
+    , PostResult
+    , PostResultState(..)
+    , RelatedPosts(..)
+    , RequestParts
+    , Topic
+    , UnknownAttachmentRecord
+    , UrlRecord
+    , User
+    , UserList
+    )
 
 import Http
 import Json.Encode exposing (Value)
-import Time exposing (Time)
 
 
 {-| A union type for request bodies
@@ -54,7 +52,7 @@ type alias RequestParts a =
     , url : String
     , body : HttpBody
     , expect : Http.Expect a
-    , timeout : Maybe Time
+    , timeout : Maybe Float
     , withCredentials : Bool
     }
 
