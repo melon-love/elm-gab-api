@@ -105,6 +105,7 @@ allScopes =
     [ ( "Read", "read" )
     , ( "Engage User", "engage-user" )
     , ( "Engage Post", "engage-post" )
+    , ( "Post", "write-post" )
     , ( "Notifications", "notifications" )
     ]
 
@@ -1043,7 +1044,7 @@ pageBody model =
                                         , text " "
                                         ]
                                     , input
-                                        [ size 9
+                                        [ size 38
                                         , onInput SetPostId
                                         , value model.postId
                                         ]
