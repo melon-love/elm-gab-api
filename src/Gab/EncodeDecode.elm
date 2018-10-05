@@ -15,6 +15,7 @@ module Gab.EncodeDecode exposing
     , activityLogListDecoder, activityLogListEncoder
     , userDecoder, userEncoder, userListDecoder, userListEncoder
     , postDecoder, postEncoder, postListDecoder, postListEncoder
+    , postFormEncoder
     )
 
 {-| Encoders and decoders for the types.
@@ -35,6 +36,11 @@ module Gab.EncodeDecode exposing
 
 @docs postDecoder, postEncoder, postListDecoder, postListEncoder
 
+
+# Create a new post
+
+@docs postFormEncoder
+
 -}
 
 import Gab.Types
@@ -46,6 +52,7 @@ import Gab.Types
         , Embed
         , MediaRecord
         , Post
+        , PostForm
         , PostList
         , RelatedPosts(..)
         , Topic
@@ -663,3 +670,78 @@ activityLogListEncoder list =
         [ ( "data", JE.list activityLogEncoder list.data )
         , ( "no-more", JE.bool list.no_more )
         ]
+
+
+boolTo0or1 : Bool -> Value
+boolTo0or1 bool =
+    let
+        s =
+            if bool then
+                "1"
+
+            else
+                "0"
+    in
+    JE.string s
+
+
+stringFrom : Maybe String -> Value
+stringFrom string =
+    case string of
+        Nothing ->
+            JE.string ""
+
+        Just s ->
+            JE.string s
+
+
+intFrom : Int -> Maybe Int -> Value
+intFrom default int =
+    case int of
+        Nothing ->
+            JE.int default
+
+        Just i ->
+            JE.int i
+
+
+{-| Encode a `PostForm`. No decoder ever used, so none defined.
+-}
+postFormEncoder : PostForm -> Value
+postFormEncoder postForm =
+    JE.object
+        (List.concat
+            [ [ ( "body", JE.string postForm.body )
+              , ( "reply_to", stringFrom postForm.reply_to )
+              , ( "is_quote", boolTo0or1 postForm.is_quote )
+              , ( "is_html", boolTo0or1 postForm.is_html )
+              , ( "nsfw", boolTo0or1 postForm.nsfw )
+              , ( "is_premium", boolTo0or1 postForm.is_premium )
+              , ( "gif", stringFrom postForm.gif )
+              , ( "topic", maybeString postForm.topic )
+              , ( "group", maybeString postForm.group )
+              , ( "media_attachments", JE.list JE.string postForm.media_attachments )
+              , ( "premium_min_tier", intFrom 0 postForm.premium_min_tier )
+              , ( "poll", boolTo0or1 postForm.poll )
+              ]
+            , if postForm.poll then
+                [ ( "poll_option_1", maybeString postForm.poll_option_1 )
+                , ( "poll_option_2", maybeString postForm.poll_option_2 )
+                ]
+
+              else
+                []
+            , case postForm.poll_option_3 of
+                Nothing ->
+                    []
+
+                Just option ->
+                    [ ( "poll_option_3", JE.string option ) ]
+            , case postForm.poll_option_4 of
+                Nothing ->
+                    []
+
+                Just option ->
+                    [ ( "poll_option_4", JE.string option ) ]
+            ]
+        )

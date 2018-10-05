@@ -22,6 +22,7 @@ module Gab exposing
     , getPost, getPostParts
     , upvotePost, upvotePostParts, downvotePost, downvotePostParts
     , repost, repostParts
+    , newPost, newPostParts
     , doParts, doUsersParts, doPostsParts
     , gabApiUri, request, getParts, requestParts
     , bodyToString
@@ -74,6 +75,11 @@ The requests all come in two flavors, one which has the decoder built in, and re
 @docs repost, repostParts
 
 
+# New Posts
+
+@docs newPost, newPostParts
+
+
 # Generic requests
 
 @docs doParts, doUsersParts, doPostsParts
@@ -91,7 +97,16 @@ The requests all come in two flavors, one which has the decoder built in, and re
 -}
 
 import Gab.EncodeDecode as ED
-import Gab.Types exposing (ActivityLogList, HttpBody(..), Post, RequestParts, User, UserList)
+import Gab.Types
+    exposing
+        ( ActivityLogList
+        , HttpBody(..)
+        , Post
+        , PostForm
+        , RequestParts
+        , User
+        , UserList
+        )
 import Http
 import Json.Decode as JD exposing (Decoder)
 import Json.Encode as JE exposing (Value)
@@ -609,3 +624,62 @@ downvotePostParts =
 repostParts : Decoder a -> Token -> String -> Bool -> RequestParts a
 repostParts =
     doPostsParts "repost"
+
+
+{-| Posting uses JSON, which is not in the spec, but is what the web client does.
+
+I copied this out of the Network tab of a browser debug window.
+
+Headers:
+Accept: application/json, text/plain, _/_
+content-type: application/json
+
+Payload:
+{
+"body": "<p>A test poll. Does Gab rock?</p>",
+"reply\_to": "",
+"is\_quote": "0",
+"is\_html": "1",
+"nsfw": "0",
+"is\_premium": "0",
+"_method": "post",
+"gif": "",
+"topic": null,
+"group": null,
+"share_facebook": null,
+"share\_twitter": null,
+"media\_attachments": [],
+"premium\_min\_tier": 0,
+"poll": "1",
+"poll\_option\_1": "Yes!",
+"poll\_option\_2": "See option 1",
+"poll\_option\_3": "Big time!"
+}
+
+-}
+newPost : Token -> PostForm -> Http.Request Value
+newPost token postForm =
+    newPostParts JD.value token postForm
+        |> request
+
+
+{-| Create a new post with a custom decoder.
+-}
+newPostParts : Decoder a -> Token -> PostForm -> RequestParts a
+newPostParts decoder token postForm =
+    let
+        method =
+            "POST"
+
+        path =
+            "posts"
+
+        body =
+            postFormBody postForm
+    in
+    requestParts method [] body decoder token path
+
+
+postFormBody : PostForm -> HttpBody
+postFormBody postForm =
+    JsonBody <| ED.postFormEncoder postForm

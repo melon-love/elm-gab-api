@@ -2,7 +2,7 @@
 --
 -- example.elm
 -- Example of using the Gab API client.
--- Copyright (c) 2017 Bill St. Clair <billstclair@gmail.com>
+-- Copyright (c) 2017-2018 Bill St. Clair <billstclair@gmail.com>
 -- Some rights reserved.
 -- Distributed under the MIT License
 -- See LICENSE.txt
@@ -20,7 +20,7 @@ import Char
 import Dict exposing (Dict)
 import Gab
 import Gab.EncodeDecode as ED
-import Gab.Types exposing (Post, RequestParts, User)
+import Gab.Types exposing (Post, PostForm, RequestParts, User)
 import Html
     exposing
         ( Attribute
@@ -133,6 +133,7 @@ type alias Model =
     , postGroup : String
     , postBefore : String
     , postId : String
+    , postBody : String
     , post : Maybe Post
     , showRaw : Bool
     }
@@ -167,6 +168,8 @@ type Msg
     | SetPostGroup String
     | SetPostId String
     | GetPost
+    | SetPostBody String
+    | NewPost
     | TogglePrettify
     | ShowHideDecoded
 
@@ -266,6 +269,7 @@ init _ url key =
       , postGroup = "62c38c34-0559-4e2e-a382-98b1ba9acf18"
       , postBefore = ""
       , postId = ""
+      , postBody = ""
       , post = Nothing
       , showRaw = True
       }
@@ -388,6 +392,37 @@ getPost model =
         \token -> Gab.getPostParts JD.value token model.postId
 
 
+newPost : Model -> ( Model, Cmd Msg )
+newPost model =
+    get model ReceivePost <|
+        \token -> Gab.newPostParts JD.value token (makePostForm model)
+
+
+makePostForm : Model -> PostForm
+makePostForm model =
+    let
+        body =
+            model.postBody
+    in
+    { body = body
+    , reply_to = Nothing
+    , is_quote = False
+    , is_html = False
+    , nsfw = False
+    , is_premium = False
+    , gif = Nothing
+    , topic = Nothing
+    , group = Nothing
+    , media_attachments = []
+    , premium_min_tier = Nothing
+    , poll = False
+    , poll_option_1 = Nothing
+    , poll_option_2 = Nothing
+    , poll_option_3 = Nothing
+    , poll_option_4 = Nothing
+    }
+
+
 {-| TODO: add checkboxes to UI to select scopes.
 -}
 lookupProvider : Model -> Model
@@ -476,6 +511,14 @@ update msg model =
         SetPostId id ->
             ( { model
                 | postId = id
+                , post = Nothing
+              }
+            , Cmd.none
+            )
+
+        SetPostBody postBody ->
+            ( { model
+                | postBody = postBody
                 , post = Nothing
               }
             , Cmd.none
@@ -606,6 +649,9 @@ update msg model =
 
         GetPost ->
             getPost model
+
+        NewPost ->
+            newPost model
 
         ReceiveUser save result ->
             receiveUserThing save result model
@@ -1205,6 +1251,27 @@ pageBody model =
                                     ]
                                 ]
                             ]
+                        , tr []
+                            [ td []
+                                [ b
+                                    [ text "Post Body: "
+                                    ]
+                                , input
+                                    [ size 38
+                                    , onInput SetPostBody
+                                    , value model.postBody
+                                    ]
+                                    []
+                                ]
+                            , td []
+                                [ button
+                                    [ disabled <| model.postBody == ""
+                                    , onClick NewPost
+                                    , title "Fillin 'Post Body' and click."
+                                    ]
+                                    [ text "New Post" ]
+                                ]
+                            ]
                         ]
                     , p []
                         [ input
@@ -1438,7 +1505,7 @@ space =
 footerDiv : Model -> Html Msg
 footerDiv model =
     div []
-        [ text (copyright ++ " 2017 ")
+        [ text (copyright ++ " 2017-2018 ")
         , a [ href "https://lisplog.org/" ]
             [ text "Bill St. Clair" ]
         , space

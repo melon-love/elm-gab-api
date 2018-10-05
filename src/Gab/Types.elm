@@ -18,6 +18,7 @@ module Gab.Types exposing
     , Post, PostList
     , Embed, CategoryDetails, Topic, RelatedPosts(..)
     , Attachment(..), UrlRecord, MediaRecord, UnknownAttachmentRecord
+    , PostForm
     )
 
 {-| Shared Types for the Gab API.
@@ -52,6 +53,11 @@ module Gab.Types exposing
 # Attachments
 
 @docs Attachment, UrlRecord, MediaRecord, UnknownAttachmentRecord
+
+
+# Creating a new post
+
+@docs PostForm
 
 -}
 
@@ -306,4 +312,26 @@ type PostResultState
 type alias PostResult =
     { state : PostResultState
     , message : String
+    }
+
+
+{-| Creating a new post
+-}
+type alias PostForm =
+    { body : String
+    , reply_to : Maybe String
+    , is_quote : Bool
+    , is_html : Bool
+    , nsfw : Bool
+    , is_premium : Bool
+    , gif : Maybe String
+    , topic : Maybe String
+    , group : Maybe String
+    , media_attachments : List String
+    , premium_min_tier : Maybe Int
+    , poll : Bool
+    , poll_option_1 : Maybe String
+    , poll_option_2 : Maybe String
+    , poll_option_3 : Maybe String
+    , poll_option_4 : Maybe String
     }
