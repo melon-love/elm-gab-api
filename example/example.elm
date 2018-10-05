@@ -1092,16 +1092,6 @@ pageBody model =
                                     ]
                                 ]
                             --}
-                            , if engagePost then
-                                text ""
-
-                              else
-                                tr []
-                                    [ td [ colspan 2 ]
-                                        [ text nbsp4
-                                        , text "(Since 'Engage Post' scope is disabled, these will error)"
-                                        ]
-                                    ]
                             , tr []
                                 [ td []
                                     [ b
@@ -1123,6 +1113,16 @@ pageBody model =
                                         [ text "Get" ]
                                     ]
                                 ]
+                            , if engagePost then
+                                text ""
+
+                              else
+                                tr []
+                                    [ td [ colspan 2 ]
+                                        [ text nbsp4
+                                        , text "(Since 'Engage Post' scope is disabled, these will error)"
+                                        ]
+                                    ]
                             , tr [] <|
                                 let
                                     ( ( isDisabled, theTitle, unlike ), ( likeText, undislike, dislikeText ), ( unrepost, repostText ) ) =
