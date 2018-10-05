@@ -131,7 +131,6 @@ type alias Model =
     , userProfile : Maybe User
     , postUser : String
     , postBefore : String
-    , postAfter : String
     , postId : String
     , post : Maybe Post
     , showRaw : Bool
@@ -162,7 +161,6 @@ type Msg
     | SetUsername String
     | SetUserBefore String
     | SetPostBefore String
-    | SetPostAfter String
     | SetPostUser String
     | SetPostId String
     | GetPost
@@ -263,7 +261,6 @@ init _ url key =
       , userProfile = Nothing
       , postUser = "xossbow"
       , postBefore = ""
-      , postAfter = ""
       , postId = ""
       , post = Nothing
       , showRaw = True
@@ -337,22 +334,22 @@ getPopularUsers model =
         \token -> Gab.popularUsersParts JD.value token
 
 
-getHomeFeed : Model -> String -> String -> ( Model, Cmd Msg )
-getHomeFeed model before after =
+getHomeFeed : Model -> String -> ( Model, Cmd Msg )
+getHomeFeed model before =
     get model ReceiveActivityLogList <|
-        \token -> Gab.homeFeedParts JD.value token before after
+        \token -> Gab.homeFeedParts JD.value token before
 
 
-getUserFeed : Model -> String -> String -> String -> ( Model, Cmd Msg )
-getUserFeed model user before after =
+getUserFeed : Model -> String -> String -> ( Model, Cmd Msg )
+getUserFeed model user before =
     get model ReceiveActivityLogList <|
-        \token -> Gab.userFeedParts JD.value token user before after
+        \token -> Gab.userFeedParts JD.value token user before
 
 
 getPopularFeed : Model -> ( Model, Cmd Msg )
 getPopularFeed model =
     get model ReceiveActivityLogList <|
-        \token -> Gab.popularFeedParts JD.value token "" ""
+        \token -> Gab.popularFeedParts JD.value token ""
 
 
 {-| TODO: It would be good to refetch user or post after the operation is done.
@@ -458,11 +455,6 @@ update msg model =
 
         SetPostBefore before ->
             ( { model | postBefore = before }
-            , Cmd.none
-            )
-
-        SetPostAfter after ->
-            ( { model | postAfter = after }
             , Cmd.none
             )
 
@@ -583,10 +575,10 @@ update msg model =
             getPopularUsers model
 
         GetHomeFeed ->
-            getHomeFeed model model.postBefore model.postAfter
+            getHomeFeed model model.postBefore
 
         GetUserFeed ->
-            getUserFeed model model.postUser model.postBefore model.postAfter
+            getUserFeed model model.postUser model.postBefore
 
         GetPopularFeed ->
             getPopularFeed model
@@ -807,6 +799,13 @@ view model =
 
 pageBody : Model -> Html Msg
 pageBody model =
+    let
+        engagePost =
+            List.member "engage-post" model.receivedScopes
+
+        engageUser =
+            List.member "engage-user" model.receivedScopes
+    in
     div
         [ style "margin-left" "3em"
         ]
@@ -920,7 +919,7 @@ pageBody model =
                                             )
                             in
                             [ td [ colspan 2 ]
-                                [ if List.member "engage-user" model.receivedScopes then
+                                [ if engageUser then
                                     text ""
 
                                   else
@@ -938,6 +937,8 @@ pageBody model =
                                     ]
                                     [ text followText ]
                                 , text " "
+
+                                {--Mute doesn't current work
                                 , button
                                     [ disabled isDisabled
                                     , title theTitle
@@ -945,6 +946,7 @@ pageBody model =
                                         DoOperation "users" "mute" model.username False
                                     ]
                                     [ text muteText ]
+                                --}
                                 , if isDisabled then
                                     text ""
 
@@ -991,17 +993,6 @@ pageBody model =
                                     ]
                                 ]
                             , tr []
-                                [ td [ colspan 2 ]
-                                    [ b [ text " After: " ]
-                                    , input
-                                        [ size 40
-                                        , onInput SetPostAfter
-                                        , value model.postAfter
-                                        ]
-                                        []
-                                    ]
-                                ]
-                            , tr []
                                 [ td []
                                     [ b
                                         [ text nbsp2
@@ -1037,11 +1028,20 @@ pageBody model =
                                         [ text "User Feed" ]
                                     ]
                                 ]
+                            , if engagePost then
+                                text ""
+
+                              else
+                                tr []
+                                    [ td [ colspan 2 ]
+                                        [ text nbsp4
+                                        , text "(Since 'Engage Post' scope is disabled, these will error)"
+                                        ]
+                                    ]
                             , tr []
                                 [ td []
                                     [ b
-                                        [ text "Post Id:"
-                                        , text " "
+                                        [ text "Post Id: "
                                         ]
                                     , input
                                         [ size 38
@@ -1068,9 +1068,9 @@ pageBody model =
                                                   , "Click \"Get\" to enable."
                                                   , True
                                                   )
-                                                , ( "(Un)Like"
+                                                , ( "(Un)Upvote"
                                                   , True
-                                                  , "(Un)Dislike"
+                                                  , "(Un)Downvote"
                                                   )
                                                 , ( True
                                                   , "(Un)Repost"
@@ -1093,16 +1093,16 @@ pageBody model =
                                                   , liked
                                                   )
                                                 , ( if liked then
-                                                        "Unlike"
+                                                        "Unupvote"
 
                                                     else
-                                                        "Like"
+                                                        "Upvote"
                                                   , disliked
                                                   , if disliked then
-                                                        "Undislike"
+                                                        "Undownvote"
 
                                                     else
-                                                        "Dislike"
+                                                        "Downvote"
                                                   )
                                                 , ( reposted
                                                   , if reposted then
@@ -1114,21 +1114,12 @@ pageBody model =
                                                 )
                                 in
                                 [ td [ colspan 2 ]
-                                    [ if List.member "engage-post" model.receivedScopes then
-                                        text ""
-
-                                      else
-                                        span []
-                                            [ text nbsp4
-                                            , text "(Since 'Engage Post' scope is disabled, these will error)"
-                                            , br
-                                            ]
-                                    , text nbsp4
+                                    [ text nbsp4
                                     , button
                                         [ disabled isDisabled
                                         , title theTitle
                                         , onClick <|
-                                            DoOperation "posts" "like" model.postId unlike
+                                            DoOperation "posts" "upvote" model.postId unlike
                                         ]
                                         [ text likeText ]
                                     , text " "
@@ -1136,7 +1127,7 @@ pageBody model =
                                         [ disabled isDisabled
                                         , title theTitle
                                         , onClick <|
-                                            DoOperation "posts" "dislike" model.postId undislike
+                                            DoOperation "posts" "downvote" model.postId undislike
                                         ]
                                         [ text dislikeText ]
                                     , text " "

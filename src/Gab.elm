@@ -19,7 +19,7 @@ module Gab exposing
     , popularFeed, popularFeedParts
     , popularUsers, popularUsersParts
     , getPost, getPostParts
-    , likePost, likePostParts, dislikePost, dislikePostParts
+    , upvotePost, upvotePostParts, downvotePost, downvotePostParts
     , repost, repostParts
     , doParts, doUsersParts, doPostsParts
     , gabApiUri, request, getParts, requestParts
@@ -68,7 +68,7 @@ The requests all come in two flavors, one which has the decoder built in, and re
 # Posts
 
 @docs getPost, getPostParts
-@docs likePost, likePostParts, dislikePost, dislikePostParts
+@docs upvotePost, upvotePostParts, downvotePost, downvotePostParts
 @docs repost, repostParts
 
 
@@ -202,7 +202,7 @@ me token =
 -}
 meParts : Decoder a -> Token -> RequestParts a
 meParts decoder token =
-    getParts decoder token "me"
+    getParts decoder token "me/"
 
 
 {-| Return the logged-in user's profile information as a User record.
@@ -324,10 +324,12 @@ followUser token username unfollow =
 
     muteUser token username unmute
 
+This isn't currently implemented by the API, but I expect that to change.
+
 -}
 muteUser : Token -> String -> Bool -> Http.Request Value
-muteUser token username unlike =
-    muteUserParts JD.value token username unlike
+muteUser token username unmute =
+    muteUserParts JD.value token username unmute
         |> request
 
 
@@ -336,6 +338,8 @@ muteUser token username unlike =
     doParts prefix operation decoder token identifier undo
 
 `prefix` can be "users" or "posts".
+
+If `undo` is `True`, does a DELETE. Otherwise, does a POST.
 
 -}
 doParts : String -> String -> Decoder a -> Token -> String -> Bool -> RequestParts a
@@ -380,33 +384,28 @@ followUserParts =
 
     muteUserParts decoder token username unmute
 
+This isn't currently implemented by the API, but I expect that to change.
+
 -}
 muteUserParts : Decoder a -> Token -> String -> Bool -> RequestParts a
 muteUserParts =
     doUsersParts "mute"
 
 
-{-| Shared by all the getters that take before and after dates.
+{-| Shared by all the getters that take before dates.
 
-    beforeAfterParts prefix decoder token before after
+    beforeAfterParts prefix decoder token before
 
 -}
-beforeAfterParts : String -> Decoder a -> Token -> String -> String -> RequestParts a
-beforeAfterParts prefix decoder token before after =
+beforeAfterParts : String -> Decoder a -> Token -> String -> RequestParts a
+beforeAfterParts prefix decoder token before =
     let
         queries =
-            List.concat
-                [ if before == "" then
-                    []
+            if before == "" then
+                []
 
-                  else
-                    [ Builder.string "before" before ]
-                , if after == "" then
-                    []
-
-                  else
-                    [ Builder.string "after" after ]
-                ]
+            else
+                [ Builder.string "before" before ]
 
         path =
             prefix ++ Builder.toQuery queries
@@ -416,77 +415,77 @@ beforeAfterParts prefix decoder token before after =
 
 {-| Return the posts in the "popular" feed, as a ActivityLogList.
 
-    popularFeed token before after
+    popularFeed token before
 
-The posts returned will have dates between `before` and `after`. Pass the empty string for either to not limit that end.
+The posts returned will have dates before `before`. Pass the empty string for either to not limit that end.
 
 -}
-popularFeed : Token -> String -> String -> Http.Request ActivityLogList
-popularFeed token before after =
-    popularFeedParts ED.activityLogListDecoder token before after
+popularFeed : Token -> String -> Http.Request ActivityLogList
+popularFeed token before =
+    popularFeedParts ED.activityLogListDecoder token before
         |> request
 
 
 {-| Return the posts in the "popular" feed, using a custom decoder.
 
-    popularFeedParts decoder token before after
+    popularFeedParts decoder token before
 
-The posts returned will have dates between `before` and `after`. Pass the empty string for either to not limit that end.
+The posts returned will have dates before `before`. Pass the empty string for either to not limit that end.
 
 -}
-popularFeedParts : Decoder a -> Token -> String -> String -> RequestParts a
-popularFeedParts decoder token before after =
-    beforeAfterParts "popular/feed" decoder token before after
+popularFeedParts : Decoder a -> Token -> String -> RequestParts a
+popularFeedParts decoder token before =
+    beforeAfterParts "popular/feed" decoder token before
 
 
 {-| Return posts in the home feed.
 
-    homeFeed token before after.
+    homeFeed token before
 
-The posts returned will have dates between `before` and `after`. Pass the empty string for either to not limit that end.
+The posts returned will have dates before `before`. Pass the empty string for either to not limit that end.
 
 -}
-homeFeed : Token -> String -> String -> Http.Request ActivityLogList
-homeFeed token before after =
-    homeFeedParts ED.activityLogListDecoder token before after
+homeFeed : Token -> String -> Http.Request ActivityLogList
+homeFeed token before =
+    homeFeedParts ED.activityLogListDecoder token before
         |> request
 
 
 {-| Return posts in the home feed, using a custom encoder.
 
-    homeFeedParts decoder token before after
+    homeFeedParts decoder token before
 
-The posts returned will have dates between `before` and `after`. Pass the empty string for either to not limit that end.
+The posts returned will have dates before `before`. Pass the empty string for either to not limit that end.
 
 -}
-homeFeedParts : Decoder a -> Token -> String -> String -> RequestParts a
-homeFeedParts decoder token before after =
-    beforeAfterParts "feed" decoder token before after
+homeFeedParts : Decoder a -> Token -> String -> RequestParts a
+homeFeedParts decoder token before =
+    beforeAfterParts "feed" decoder token before
 
 
 {-| Return posts for a user feed.
 
-    userFeed token user before after.
+    userFeed token user before
 
-The posts returned will have dates between `before` and `after`. Pass the empty string for either to not limit that end.
+The posts returned will have dates before `before`. Pass the empty string for either to not limit that end.
 
 -}
-userFeed : Token -> String -> String -> String -> Http.Request ActivityLogList
-userFeed token user before after =
-    userFeedParts ED.activityLogListDecoder token user before after
+userFeed : Token -> String -> String -> Http.Request ActivityLogList
+userFeed token user before =
+    userFeedParts ED.activityLogListDecoder token user before
         |> request
 
 
 {-| Return posts for a user feed, using a custom decoder.
 
-    userFeedParts decoder user token before after
+    userFeedParts decoder user token before
 
-The posts returned will have dates between `before` and `after`. Pass the empty string for either to not limit that end.
+The posts returned will have dates before `before`. Pass the empty string for either to not limit that end.
 
 -}
-userFeedParts : Decoder a -> Token -> String -> String -> String -> RequestParts a
-userFeedParts decoder token user before after =
-    beforeAfterParts ("users/" ++ user ++ "/feed") decoder token before after
+userFeedParts : Decoder a -> Token -> String -> String -> RequestParts a
+userFeedParts decoder token user before =
+    beforeAfterParts ("users/" ++ user ++ "/feed") decoder token before
 
 
 {-| Get a single post.
@@ -510,25 +509,25 @@ getPostParts decoder token postid =
     getParts decoder token <| "posts/" ++ postid
 
 
-{-| Like or unlike a post. Return value not interesting.
+{-| Upvote or unupvote a post. Return value not interesting.
 
-    likePost token postid unlike
+    upvotePost token postid unupvote
 
 -}
-likePost : Token -> String -> Bool -> Http.Request Value
-likePost token postid unlike =
-    likePostParts JD.value token postid unlike
+upvotePost : Token -> String -> Bool -> Http.Request Value
+upvotePost token postid unupvote =
+    upvotePostParts JD.value token postid unupvote
         |> request
 
 
-{-| Dislike or undislike a post. Return value not interesting.
+{-| Downvote or undownvote a post. Return value not interesting.
 
-    dislikePost token postid undislike
+    downvotePost token postid undownvote
 
 -}
-dislikePost : Token -> String -> Bool -> Http.Request Value
-dislikePost token postid undislike =
-    dislikePostParts JD.value token postid undislike
+downvotePost : Token -> String -> Bool -> Http.Request Value
+downvotePost token postid undownvote =
+    downvotePostParts JD.value token postid undownvote
         |> request
 
 
@@ -543,11 +542,11 @@ repost token postid unrepost =
         |> request
 
 
-{-| Shared by likePostParts, dislikePostParts, repostParts
+{-| Shared by upvotePostParts, downvotePostParts, repostParts
 
     doPostsParts operation decoder token username undo
 
-`operation` can be "like", "dislike" or "repost".
+`operation` can be "upvote", "downvote" or "repost".
 
 -}
 doPostsParts : String -> Decoder a -> Token -> String -> Bool -> RequestParts a
@@ -555,24 +554,24 @@ doPostsParts =
     doParts "posts"
 
 
-{-| Like or unlike a post, with a custom decoder.
+{-| Upvote or unupvote a post, with a custom decoder.
 
-    likePostParts decoder token postid unlike
-
--}
-likePostParts : Decoder a -> Token -> String -> Bool -> RequestParts a
-likePostParts =
-    doPostsParts "like"
-
-
-{-| Dislike or undislike a post, with a custom decoder.
-
-    dislikePostParts decoder token postid undislike
+    upvotePostParts decoder token postid unupvote
 
 -}
-dislikePostParts : Decoder a -> Token -> String -> Bool -> RequestParts a
-dislikePostParts =
-    doPostsParts "dislike"
+upvotePostParts : Decoder a -> Token -> String -> Bool -> RequestParts a
+upvotePostParts =
+    doPostsParts "upvote"
+
+
+{-| Downvote or undownvote a post, with a custom decoder.
+
+    downvotePostParts decoder token postid undownvote
+
+-}
+downvotePostParts : Decoder a -> Token -> String -> Bool -> RequestParts a
+downvotePostParts =
+    doPostsParts "downvote"
 
 
 {-| Repost or unrepost, with a custom decoder.

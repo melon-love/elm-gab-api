@@ -89,12 +89,15 @@ type alias User =
     , username : String
     , picture_url : String
     , verified : Bool
-    , is_investor : Bool --not really required
     , is_pro : Bool
-    , is_private : Bool
+    , is_donor : Bool
+    , is_investor : Bool
     , is_premium : Bool
+    , is_private : Bool
 
     -- optional fields, according to the JSON spec.
+    , is_tippable : Bool
+    , is_accessible : Bool
     , created_at_month_label : Maybe String
     , follower_count : Maybe Int
     , following_count : Maybe Int
@@ -102,10 +105,7 @@ type alias User =
     , picture_url_full : Maybe String
     , following : Bool
     , followed : Bool
-    , is_donor : Bool
-    , is_tippable : Bool
     , premium_price : Maybe Float
-    , is_accessible : Bool
     , follow_pending : Bool
     , unread_notification_count : Maybe Int
     , stream : Bool
@@ -118,7 +118,6 @@ type alias User =
     , notify_mentions : Bool
     , notify_likes : Bool
     , notify_reposts : Bool
-    , score : Maybe Int
     , broadcast_channel : Maybe String
     , exclusive_features : Bool
     , social_facebook : Bool
@@ -132,7 +131,11 @@ type alias User =
     , pinned_post_id : Maybe String
     , nsfw_filter : Bool
     , hide_premium_content : Bool
+    , score : Maybe Int
     , video_count : Maybe Int
+    , is_favorited : Bool
+    , subscribing : Bool
+    , is_muted : Bool
     , can_downvote : Bool
     }
 
