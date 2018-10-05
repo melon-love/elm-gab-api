@@ -16,6 +16,7 @@ module Gab exposing
     , followUser, followUserParts, muteUser, muteUserParts
     , homeFeed, homeFeedParts
     , userFeed, userFeedParts
+    , groupFeed, groupFeedParts
     , popularFeed, popularFeedParts
     , popularUsers, popularUsersParts
     , getPost, getPostParts
@@ -61,6 +62,7 @@ The requests all come in two flavors, one which has the decoder built in, and re
 
 @docs homeFeed, homeFeedParts
 @docs userFeed, userFeedParts
+@docs groupFeed, groupFeedParts
 @docs popularFeed, popularFeedParts
 @docs popularUsers, popularUsersParts
 
@@ -415,27 +417,23 @@ beforeAfterParts prefix decoder token before =
 
 {-| Return the posts in the "popular" feed, as a ActivityLogList.
 
-    popularFeed token before
-
-The posts returned will have dates before `before`. Pass the empty string for either to not limit that end.
+    popularFeed token
 
 -}
-popularFeed : Token -> String -> Http.Request ActivityLogList
-popularFeed token before =
-    popularFeedParts ED.activityLogListDecoder token before
+popularFeed : Token -> Http.Request ActivityLogList
+popularFeed token =
+    popularFeedParts ED.activityLogListDecoder token
         |> request
 
 
 {-| Return the posts in the "popular" feed, using a custom decoder.
 
-    popularFeedParts decoder token before
-
-The posts returned will have dates before `before`. Pass the empty string for either to not limit that end.
+    popularFeedParts decoder token
 
 -}
-popularFeedParts : Decoder a -> Token -> String -> RequestParts a
-popularFeedParts decoder token before =
-    beforeAfterParts "popular/feed" decoder token before
+popularFeedParts : Decoder a -> Token -> RequestParts a
+popularFeedParts decoder token =
+    beforeAfterParts "popular/feed" decoder token ""
 
 
 {-| Return posts in the home feed.
@@ -486,6 +484,35 @@ The posts returned will have dates before `before`. Pass the empty string for ei
 userFeedParts : Decoder a -> Token -> String -> String -> RequestParts a
 userFeedParts decoder token user before =
     beforeAfterParts ("users/" ++ user ++ "/feed") decoder token before
+
+
+{-| Return posts for a group feed.
+
+    groupFeed token group before
+
+The posts returned will have dates before `before`. Pass the empty string for either to not limit that end.
+
+This is a guess at what this API command will look like. It doesn't yet exist.
+
+-}
+groupFeed : Token -> String -> String -> Http.Request ActivityLogList
+groupFeed token group before =
+    groupFeedParts ED.activityLogListDecoder token group before
+        |> request
+
+
+{-| Return posts for a group feed, using a custom decoder.
+
+    groupFeedParts decoder group token before
+
+The posts returned will have dates before `before`. Pass the empty string for either to not limit that end.
+
+This is a guess at what this API command will look like. It doesn't yet exist.
+
+-}
+groupFeedParts : Decoder a -> Token -> String -> String -> RequestParts a
+groupFeedParts decoder token group before =
+    beforeAfterParts ("groups/" ++ group ++ "/feed") decoder token before
 
 
 {-| Get a single post.

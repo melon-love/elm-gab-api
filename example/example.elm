@@ -130,6 +130,7 @@ type alias Model =
     , userBefore : Int
     , userProfile : Maybe User
     , postUser : String
+    , postGroup : String
     , postBefore : String
     , postId : String
     , post : Maybe Post
@@ -150,6 +151,7 @@ type Msg
     | GetPopularUsers
     | GetHomeFeed
     | GetUserFeed
+    | GetGroupFeed
     | GetPopularFeed
     | DoOperation String String String Bool
     | ReceiveUser Bool (Result Http.Error Value)
@@ -162,6 +164,7 @@ type Msg
     | SetUserBefore String
     | SetPostBefore String
     | SetPostUser String
+    | SetPostGroup String
     | SetPostId String
     | GetPost
     | TogglePrettify
@@ -260,6 +263,7 @@ init _ url key =
       , userBefore = 0
       , userProfile = Nothing
       , postUser = "xossbow"
+      , postGroup = "62c38c34-0559-4e2e-a382-98b1ba9acf18"
       , postBefore = ""
       , postId = ""
       , post = Nothing
@@ -346,10 +350,16 @@ getUserFeed model user before =
         \token -> Gab.userFeedParts JD.value token user before
 
 
+getGroupFeed : Model -> String -> String -> ( Model, Cmd Msg )
+getGroupFeed model group before =
+    get model ReceiveActivityLogList <|
+        \token -> Gab.groupFeedParts JD.value token group before
+
+
 getPopularFeed : Model -> ( Model, Cmd Msg )
 getPopularFeed model =
     get model ReceiveActivityLogList <|
-        \token -> Gab.popularFeedParts JD.value token ""
+        \token -> Gab.popularFeedParts JD.value token
 
 
 {-| TODO: It would be good to refetch user or post after the operation is done.
@@ -450,6 +460,11 @@ update msg model =
 
         SetPostUser postUser ->
             ( { model | postUser = postUser }
+            , Cmd.none
+            )
+
+        SetPostGroup postGroup ->
+            ( { model | postGroup = postGroup }
             , Cmd.none
             )
 
@@ -579,6 +594,9 @@ update msg model =
 
         GetUserFeed ->
             getUserFeed model model.postUser model.postBefore
+
+        GetGroupFeed ->
+            getGroupFeed model model.postGroup model.postBefore
 
         GetPopularFeed ->
             getPopularFeed model
@@ -750,6 +768,26 @@ postUserUrl model =
 
         else
             Just model.postUser
+
+
+groupUrl : Maybe String -> Maybe String
+groupUrl group =
+    case group of
+        Nothing ->
+            Nothing
+
+        Just g ->
+            Just <| "https://gab.ai/groups/" ++ g
+
+
+postGroupUrl : Model -> Maybe String
+postGroupUrl model =
+    groupUrl <|
+        if model.postGroup == "" then
+            Nothing
+
+        else
+            Just model.postGroup
 
 
 isScopeSelected : String -> Model -> Bool
@@ -1028,6 +1066,32 @@ pageBody model =
                                         [ text "User Feed" ]
                                     ]
                                 ]
+
+                            {--Not yet
+                            , tr []
+                                [ td []
+                                    [ b
+                                        [ text nbsp2
+                                        , maybeLink "Group ID:" <| postGroupUrl model
+                                        , text " "
+                                        ]
+                                    , input
+                                        [ size 38
+                                        , onInput SetPostGroup
+                                        , value model.postGroup
+                                        ]
+                                        []
+                                    ]
+                                , td []
+                                    [ button
+                                        [ onClick GetGroupFeed
+                                        , disabled <| model.postGroup == ""
+                                        , title "Fillin 'Group ID' and click."
+                                        ]
+                                        [ text "Group Feed" ]
+                                    ]
+                                ]
+                            --}
                             , if engagePost then
                                 text ""
 
