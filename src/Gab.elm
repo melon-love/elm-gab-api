@@ -78,6 +78,7 @@ The requests all come in two flavors, one which has the decoder built in, and re
 # New Posts
 
 @docs newPost, newPostParts
+@docs postImage, postImageParts
 
 
 # Generic requests
@@ -96,6 +97,7 @@ The requests all come in two flavors, one which has the decoder built in, and re
 
 -}
 
+import Char
 import Gab.EncodeDecode as ED
 import Gab.Types
     exposing
@@ -878,6 +880,13 @@ boundary =
     "elm-gab-api-23skidoo"
 
 
+crlf : String
+crlf =
+    -- elm-format rewrites \r to \x0D, and that doesn't compile
+    List.map Char.fromCode [ 13, 10 ]
+        |> String.fromList
+
+
 multipartFormContentType : String
 multipartFormContentType =
     "multipart/form-data; boundary=" ++ boundary
@@ -887,13 +896,18 @@ imageBody : FileName -> ContentType -> Bytes -> HttpBody
 imageBody filename contentType bytes =
     "--"
         ++ boundary
-        ++ "\nContent-Disposition: form-data; name=\"file\"; filename=\""
+        ++ crlf
+        ++ "Content-Disposition: form-data; name=\"file\"; filename=\""
         ++ filename
-        ++ "\"\nContent-Type: "
+        ++ "\""
+        ++ crlf
+        ++ "Content-Type: "
         ++ contentType
-        ++ "\n\n"
+        ++ crlf
+        ++ crlf
         ++ bytes
-        ++ "\n\n--"
+        ++ crlf
+        ++ "--"
         ++ boundary
         ++ "--"
         |> StringBody multipartFormContentType
