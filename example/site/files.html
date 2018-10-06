@@ -1,0 +1,38 @@
+<html>
+<head>
+<title>File Upload JavaScript</title>
+<script>
+var file;
+var data;
+function handleFiles(files) {
+  file = files[0];
+  console.log("File:", file);
+  // For normal JavaScript applications, you'd just create FormData and append.
+  // https://developer.mozilla.org/en-US/docs/Web/API/FormData
+  var formData = new FormData();
+  formData.append("file", file);
+  for (var pair of formData.entries()) {
+    console.log(pair[0], pair[1]); 
+  }
+  // For Elm, we want the data as a string, so we can construct
+  // out own multipart form as a String.
+  // https://developer.mozilla.org/en-US/docs/Web/API/FileReader
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    data = e.target.result;
+    console.log("Data type:", typeof(data), ", length:", data.length);
+    console.log("See data and file variables.");
+  }
+  reader.readAsBinaryString(file);
+}
+</script>
+</head>
+<body>
+<h2>File Upload JavaScript</h2>
+
+<p>From <a href='https://developer.mozilla.org/en-US/docs/Web/API/File/Using_files_from_web_applications'>Using_files_from_web_applications</a>.</p>
+
+<input type="file" id="input" onchange="handleFiles(this.files)">
+
+</body>
+</html>
