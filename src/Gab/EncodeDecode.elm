@@ -16,6 +16,7 @@ module Gab.EncodeDecode exposing
     , userDecoder, userEncoder, userListDecoder, userListEncoder
     , postDecoder, postEncoder, postListDecoder, postListEncoder
     , postFormEncoder
+    , mediaIdDecoder, mediaIdEncoder
     )
 
 {-| Encoders and decoders for the types.
@@ -40,6 +41,7 @@ module Gab.EncodeDecode exposing
 # Create a new post
 
 @docs postFormEncoder
+@docs mediaIdDecoder, mediaIdEncoder
 
 -}
 
@@ -745,3 +747,17 @@ postFormEncoder postForm =
                     [ ( "poll_option_4", JE.string option ) ]
             ]
         )
+
+
+{-| Decode the ID that comes back from a `media-attachments/xxx` post.
+-}
+mediaIdDecoder : Decoder String
+mediaIdDecoder =
+    JD.field "id" JD.string
+
+
+{-| Encode the ID that comes back from a `media-attachments/xxx` post.
+-}
+mediaIdEncoder : String -> Value
+mediaIdEncoder id =
+    JE.object [ ( "id", JE.string id ) ]

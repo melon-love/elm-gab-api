@@ -851,10 +851,13 @@ type alias Bytes =
 
 
 {-| Posting an image.
+
+The `String` that comes back is a media ID, to be used in `PostForm.media_attachments`.
+
 -}
-postImage : Token -> FileName -> ContentType -> Bytes -> Http.Request Value
+postImage : Token -> FileName -> ContentType -> Bytes -> Http.Request String
 postImage token filename contentType bytes =
-    postImageParts JD.value token filename contentType bytes
+    postImageParts ED.mediaIdDecoder token filename contentType bytes
         |> request
 
 
