@@ -1546,8 +1546,8 @@ footerDiv model =
                 28
             , space
             , logoLink "https://gabdecker.com/"
-                "deck-with-frog-32x32.jpg"
+                "frog-32x32.jpg"
                 "GabDecker"
-                28
+                31
             ]
         ]
