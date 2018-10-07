@@ -14,7 +14,7 @@
 
 module GabAPIExample exposing (main)
 
-import Browser exposing (Document, UrlRequest)
+import Browser exposing (Document, UrlRequest(..))
 import Browser.Navigation as Navigation exposing (Key)
 import Char
 import Dict exposing (Dict)
@@ -449,7 +449,15 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         HandleUrlRequest request ->
-            ( model, Cmd.none )
+            ( model
+            , case request of
+                Internal url ->
+                    -- For now
+                    Navigation.load <| Url.toString url
+
+                External urlString ->
+                    Navigation.load urlString
+            )
 
         HandleUrlChange url ->
             ( model, Cmd.none )
@@ -892,6 +900,7 @@ pageBody model =
     in
     div
         [ style "margin-left" "3em"
+        , style "width" "40em"
         ]
         [ div []
             [ h2 [] [ text pageTitle ]
@@ -1505,19 +1514,40 @@ space =
 footerDiv : Model -> Html Msg
 footerDiv model =
     div []
-        [ text (copyright ++ " 2017-2018 ")
+        [ text "API docs: "
+        , a [ href "https://developers.gab.com" ]
+            [ text "developers.gab.com" ]
+        , br
+        , text "Creating an app (Pro Users only): "
+        , a [ href "https://gab.com/settings/clients" ]
+            [ text "gab.com/settings/clients" ]
+        , br
+        , text "Andrew Torba's announcement "
+        , a [ href "https://gab.com/gab/posts/37368168" ]
+            [ text "on October 3, 2018" ]
+        , br
+        , br
+        , text (copyright ++ " 2017-2018 ")
         , a [ href "https://lisplog.org/" ]
             [ text "Bill St. Clair" ]
         , space
         , mailLink "billstclair@gmail.com"
         , br
-        , logoLink "https://github.com/billstclair/elm-gab-api"
-            "GitHub-Mark-32px.png"
-            "GitHub source code"
-            32
-        , space
-        , logoLink "http://elm-lang.org/"
-            "elm-logo-125x125.png"
-            "Elm inside"
-            28
+        , br
+        , span [ style "margin-left" "5em" ]
+            [ logoLink "https://github.com/billstclair/elm-gab-api"
+                "GitHub-Mark-32px.png"
+                "GitHub source code"
+                32
+            , space
+            , logoLink "http://elm-lang.org/"
+                "elm-logo-125x125.png"
+                "Elm inside"
+                28
+            , space
+            , logoLink "https://gabdecker.com/"
+                "deck-with-frog-32x32.jpg"
+                "GabDecker"
+                28
+            ]
         ]

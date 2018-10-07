@@ -15,20 +15,22 @@ function handleFiles(files) {
     console.log(pair[0], pair[1]); 
   }
   // For Elm, we want the data as a string, so we can construct
-  // out own multipart form as a String.
+  // our own multipart form as a String.
   // https://developer.mozilla.org/en-US/docs/Web/API/FileReader
   var reader = new FileReader();
   reader.onload = function(e) {
     data = e.target.result;
     console.log("Data type:", typeof(data), ", length:", data.length);
-    console.log("See data and file variables.");
+    console.log("See global variables: data, file");
   }
   reader.readAsBinaryString(file);
 }
 </script>
 </head>
-<body>
+<body style="width: 40em; margin-left: 2em; margin-top: 2em;">
 <h2>File Upload JavaScript</h2>
+
+<p>Click "Choose File" below, and select a file from your disk. Then look at your browser's debugger console to see information about the file.</p>
 
 <p>From <a href='https://developer.mozilla.org/en-US/docs/Web/API/File/Using_files_from_web_applications'>Using_files_from_web_applications</a>.</p>
 
