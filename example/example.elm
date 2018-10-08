@@ -12,7 +12,7 @@
 ----------------------------------------------------------------------
 
 
-module GabAPIExample exposing (main)
+module Main exposing (main)
 
 import Browser exposing (Document, UrlRequest(..))
 import Browser.Navigation as Navigation exposing (Key)
