@@ -23,6 +23,7 @@ module Gab exposing
     , upvotePost, upvotePostParts, downvotePost, downvotePostParts
     , repost, repostParts
     , newPost, newPostParts
+    , postImage, postImageParts
     , doParts, doUsersParts, doPostsParts
     , gabApiUri, request, getParts, requestParts
     , bodyToString
@@ -98,6 +99,7 @@ The requests all come in two flavors, one which has the decoder built in, and re
 -}
 
 import Char
+import CustomElement.FileListener as File exposing (File)
 import Gab.EncodeDecode as ED
 import Gab.Types
     exposing
@@ -855,16 +857,16 @@ type alias Bytes =
 The `String` that comes back is a media ID, to be used in `PostForm.media_attachments`.
 
 -}
-postImage : Token -> FileName -> ContentType -> Bytes -> Http.Request String
-postImage token filename contentType bytes =
-    postImageParts ED.mediaIdDecoder token filename contentType bytes
+postImage : Token -> File -> Http.Request String
+postImage token file =
+    postImageParts ED.mediaIdDecoder token file
         |> request
 
 
 {-| Post an image with a custom decoder
 -}
-postImageParts : Decoder a -> Token -> FileName -> ContentType -> Bytes -> RequestParts a
-postImageParts decoder token filename contentType bytes =
+postImageParts : Decoder a -> Token -> File -> RequestParts a
+postImageParts decoder token file =
     let
         method =
             "POST"
@@ -873,7 +875,7 @@ postImageParts decoder token filename contentType bytes =
             "media-attachments/images"
 
         body =
-            imageBody filename contentType bytes
+            imageBody file
     in
     requestParts method [] body decoder token path
 
@@ -883,34 +885,12 @@ boundary =
     "elm-gab-api-23skidoo"
 
 
-crlf : String
-crlf =
-    -- elm-format rewrites \r to \x0D, and that doesn't compile
-    List.map Char.fromCode [ 13, 10 ]
-        |> String.fromList
-
-
 multipartFormContentType : String
 multipartFormContentType =
-    "multipart/form-data; boundary=" ++ boundary
+    File.multipartFormContentType boundary
 
 
-imageBody : FileName -> ContentType -> Bytes -> HttpBody
-imageBody filename contentType bytes =
-    "--"
-        ++ boundary
-        ++ crlf
-        ++ "Content-Disposition: form-data; name=\"file\"; filename=\""
-        ++ filename
-        ++ "\""
-        ++ crlf
-        ++ "Content-Type: "
-        ++ contentType
-        ++ crlf
-        ++ crlf
-        ++ bytes
-        ++ crlf
-        ++ "--"
-        ++ boundary
-        ++ "--"
+imageBody : File -> HttpBody
+imageBody file =
+    File.multipartFormData boundary file
         |> StringBody multipartFormContentType
