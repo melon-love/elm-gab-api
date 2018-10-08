@@ -44,7 +44,20 @@ import Json.Decode as JD exposing (Decoder)
 import Json.Encode as JE exposing (Value)
 
 
-{-| Here's our custom element.
+{-| `onLoad` receives a `File` instance from the JS code.
+-}
+type alias File =
+    { name : String
+    , lastModified : Int
+    , mimeType : String
+    , data : String
+    }
+
+
+{-| The custom `file-listener` element.
+
+It's invisible, but it adds an event listener to the asociated `<input type='file' id='fileId' />` element to fetch the contents of the file, and generate a `"load"` event containing the contents and other information.
+
 -}
 fileListener : List (Attribute msg) -> List (Html msg) -> Html msg
 fileListener =
@@ -59,14 +72,14 @@ fileId value =
         JE.string value
 
 
-{-| `onLoad` receives a `File` instance from the JS code.
+{-| This is how you receive file content and other information.
 -}
-type alias File =
-    { name : String
-    , lastModified : Int
-    , mimeType : String
-    , data : String
-    }
+onLoad : (File -> msg) -> Attribute msg
+onLoad tagger =
+    on "load" <|
+        JD.map tagger <|
+            JD.at [ "target", "contents" ]
+                fileDecoder
 
 
 fileDecoder : Decoder File
@@ -79,25 +92,18 @@ fileDecoder =
 
 
 {-| Encode a `File` as a [Data URI](https://css-tricks.com/data-uris/).
+
+Suitable as the `src` for an `img` element.
+
 -}
 fileToDataUri : File -> String
 fileToDataUri file =
     "data:" ++ file.mimeType ++ ";base64," ++ Base64.encode file.data
 
 
-{-| This is how you receive changes to the contents of the code editor.
--}
-onLoad : (File -> msg) -> Attribute msg
-onLoad tagger =
-    on "load" <|
-        JD.map tagger <|
-            JD.at [ "target", "contents" ]
-                fileDecoder
-
-
 crlf : String
 crlf =
-    -- elm-format rewrites \r to \x0D, and that doesn't compile
+    -- elm-format rewrites "\r" or "\u{000d}" to "\x0D", and that doesn't compile.
     List.map Char.fromCode [ 13, 10 ]
         |> String.fromList
 
