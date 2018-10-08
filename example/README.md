@@ -1,4 +1,4 @@
-This directory provides an example of using the `Gab` module to access the REST API documented at [developers.gab.com](https://developers.gab.com/). It provides a pretty good example of how to use that API.
+This directory provides an example of using the `Gab` module to access the REST API documented at [developers.gab.com](https://developers.gab.com/). It provides pretty good operational documentation of the API, for any programmer, not just Elm programmers using the `Gab` module, including what is sent to which URLs and the returned JSON.
 
 For authentication, it requires an authentication server compatible with [billstclair/elm-oauth-middleware](https://package.elm-lang.org/packages/billstclair/elm-oauth-middleware/latest/).
 
