@@ -98,7 +98,19 @@ Suitable as the `src` for an `img` element.
 -}
 fileToDataUri : File -> String
 fileToDataUri file =
-    "data:" ++ file.mimeType ++ ";base64," ++ Base64.encode file.data
+    let
+        -- truqu/elm-base64's UTF-8 handling munges binary data,
+        -- so we copy twice to get a list of `Int`s,
+        -- and use waratuman/elm-coder to do the encoding.
+        list =
+            String.toList file.data
+                |> List.map Char.toCode
+
+        base64 =
+            -- This can't error, so I don't know why it returns a `Result`
+            Result.withDefault "" <| Base64.encode list
+    in
+    "data:" ++ file.mimeType ++ ";base64," ++ base64
 
 
 crlf : String
