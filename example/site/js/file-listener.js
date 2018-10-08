@@ -9,13 +9,34 @@
 //
 //////////////////////////////////////////////////////////////////////
 
+/* Debugging code
+var file;
+var body;
+var listener;
+
+function setupFileListener() {
+  file = document.createElement('input');
+  file.id = 'thefile';
+  file.type = 'file';
+  body = document.children[0].children[1];
+  body.appendChild(file);
+  listener = document.createElement('file-listener');
+  body.appendChild(listener);
+  listener.fileId = 'thefile';
+}
+*/
+
 (function() {
 
   function getFile(id) {
-    return Document.getElementById(id);
+    return document.getElementById(id);
   }
 
   function onFileChange(listener, file) {
+    var files = file.files;
+    if (!files || files.length < 1) return;
+    file = files[0];
+
     var reader = new FileReader();
     reader.onload = function(e) {
       listener._contents =
@@ -25,8 +46,10 @@
           size: file.size,
           data: e.target.result
         };
+      console.log('Loaded:', listener._contents);
       listener.dispatchEvent(new CustomEvent('load'));
     }
+    console.log('Reading:', file);
     reader.readAsBinaryString(file);
   }
 
@@ -53,7 +76,7 @@
 
     set fileId(value) {
       if (this._fileId === value) return;
-      var file = file._file;
+      var file = this._file;
       if (file) {
         file.removeEventListener('change', this._onChange);
         this._file = null;
@@ -66,7 +89,7 @@
         if (file) {
           this._file = file;
           var listener = this;
-          file._onChange = function() {
+          listener._onChange = function() {
             // `this` should be the file here. Use `file` instead?
             onFileChange(listener, this);
           };
