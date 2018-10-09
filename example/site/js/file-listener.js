@@ -32,6 +32,24 @@ function setupFileListener() {
     return document.getElementById(id);
   }
 
+  function attachFile(listener, fileId, count) {
+    var file = getFile(fileId);
+    if (file) {
+      this._file = file;
+      var listener = this;
+      listener._onChange = function() {
+        // `this` should be the file here. Use `file` instead?
+        onFileChange(listener, this);
+      };
+      // Will Elm's DOM synchronization remove this? We'll see.
+      file.addEventListener('change', this._onChange, false);
+    } else {
+      count = 1 + (count || 0);
+      if (count > 10) return;
+      setTimeout(function() { attachFile(listener, fileId, count) }, 100);
+    }
+  }
+
   function onFileChange(listener, file) {
     var files = file.files;
     if (!files || files.length < 1) return;
@@ -85,17 +103,7 @@ function setupFileListener() {
       var fileId = value;
       this._fileId = fileId;
       if (fileId) {
-        file = getFile(fileId);
-        if (file) {
-          this._file = file;
-          var listener = this;
-          listener._onChange = function() {
-            // `this` should be the file here. Use `file` instead?
-            onFileChange(listener, this);
-          };
-          // Will Elm's DOM synchronization remove this? We'll see.
-          file.addEventListener('change', this._onChange, false);
-        }
+        attachFile(this, fileId);
       }
     }
 

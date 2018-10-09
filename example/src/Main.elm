@@ -17,6 +17,13 @@ module Main exposing (main)
 import Browser exposing (Document, UrlRequest(..))
 import Browser.Navigation as Navigation exposing (Key)
 import Char
+import CustomElement.FileListener as File
+    exposing
+        ( File
+        , fileId
+        , fileListener
+        , onLoad
+        )
 import Dict exposing (Dict)
 import Gab
 import Gab.EncodeDecode as ED
@@ -44,12 +51,14 @@ import Html
         )
 import Html.Attributes
     exposing
-        ( alt
+        ( accept
+        , alt
         , checked
         , colspan
         , disabled
         , height
         , href
+        , id
         , selected
         , size
         , src
@@ -135,6 +144,7 @@ type alias Model =
     , postId : String
     , postBody : String
     , post : Maybe Post
+    , file : Maybe File
     , showRaw : Bool
     }
 
@@ -169,6 +179,7 @@ type Msg
     | SetPostId String
     | GetPost
     | SetPostBody String
+    | SetFile File
     | NewPost
     | TogglePrettify
     | ShowHideDecoded
@@ -271,6 +282,7 @@ init _ url key =
       , postId = ""
       , postBody = ""
       , post = Nothing
+      , file = Nothing
       , showRaw = True
       }
     , Cmd.batch
@@ -528,6 +540,13 @@ update msg model =
             ( { model
                 | postBody = postBody
                 , post = Nothing
+              }
+            , Cmd.none
+            )
+
+        SetFile file ->
+            ( { model
+                | file = Just file
               }
             , Cmd.none
             )
@@ -1279,6 +1298,33 @@ pageBody model =
                                     , title "Fillin 'Post Body' and click."
                                     ]
                                     [ text "New Post" ]
+                                ]
+                            ]
+                        , tr []
+                            [ td []
+                                [ input
+                                    [ type_ "file"
+                                    , accept "image/*"
+                                    , id "thefile"
+                                    ]
+                                    []
+                                , fileListener
+                                    [ fileId "thefile"
+                                    , onLoad SetFile
+                                    ]
+                                    []
+                                ]
+                            , td []
+                                [ case model.file of
+                                    Nothing ->
+                                        text ""
+
+                                    Just file ->
+                                        img
+                                            [ src <| File.fileToDataUri file
+                                            , width 200
+                                            ]
+                                            []
                                 ]
                             ]
                         ]
