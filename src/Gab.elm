@@ -99,7 +99,7 @@ The requests all come in two flavors, one which has the decoder built in, and re
 -}
 
 import Char
-import CustomElement.FileListener as File exposing (File)
+import CustomElement.FileListener as File exposing (File, crlf)
 import Gab.EncodeDecode as ED
 import Gab.Types
     exposing
@@ -165,7 +165,7 @@ bodyToString indent body =
             JE.encode indent value
 
         StringBody mimetype string ->
-            mimetype ++ ": " ++ string
+            "mimetype: " ++ mimetype ++ "\n\n" ++ string
 
         OtherBody _ ->
             "<opaque>"
@@ -631,39 +631,6 @@ repostParts =
     doPostsParts "repost"
 
 
-
-{-
-   I copied this out of the Network tab of a browser debug window.
-
-   Headers:
-
-       Accept: application/json, text/plain, _/_
-       content-type: application/json
-
-   Payload:
-
-       {"body": "<p>A test poll. Does Gab rock?</p>",
-        "reply\_to": "",
-        "is\_quote": "0",
-        "is\_html": "1",
-        "nsfw": "0",
-        "is\_premium": "0",
-        "_method": "post",
-        "gif": "",
-        "topic": null,
-        "group": null,
-        "share_facebook": null,
-        "share\_twitter": null,
-        "media\_attachments": [],
-        "premium\_min\_tier": 0,
-        "poll": "1",
-        "poll\_option\_1": "Yes!",
-        "poll\_option\_2": "See option 1",
-        "poll\_option\_3": "Big time!"
-        }
--}
-
-
 {-| Posting uses JSON, which is not in the spec, but is what the web client does.
 -}
 newPost : Token -> PostForm -> Http.Request ActivityLog
@@ -694,165 +661,6 @@ postFormBody postForm =
     JsonBody <| ED.postFormEncoder postForm
 
 
-
-{-
-      Also copied from the Network tab.
-
-      Request headers:
-
-          Accept: application/json, text/plain, _/_
-          Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryzckh5jYHQWN5FetB
-          Origin: <https://gab.com>
-          Referer: <https://gab.com/notifications>
-          User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10\_13\_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.81 Safari/537.36
-
-      Form data:
-
-          ------WebKitFormBoundaryzckh5jYHQWN5FetB
-          Content-Disposition: form-data; name="file"; filename="new-gab-logo.jpg"
-          Content-Type: image/jpeg
-
-          ------WebKitFormBoundaryzckh5jYHQWN5FetB--
-
-      Response:
-
-          {"id":"285afec2-44f8-4d16-992a-c8522e9e5b8b"}
-
-      Post contents:
-
-          {
-            "body": "<p>Test post with attached image.</p>",
-            "reply_to": "",
-            "is_quote": "0",
-            "is_html": "1",
-            "nsfw": "0",
-            "is_premium": "0",
-            "_method": "post",
-            "gif": "",
-            "topic": null,
-            "group": null,
-            "share_facebook": null,
-            "share_twitter": null,
-            "media_attachments": [
-              "285afec2-44f8-4d16-992a-c8522e9e5b8b"
-            ],
-            "premium_min_tier": 0
-          }
-
-      Response:
-
-          {"id":"2c02fd52-907e-4c55-bb57-0014056b8aa1",
-           "published_at":"2018-10-06T09:38:11+00:00",
-           "type":"post",
-           "actuser":{"id":335174,
-                      "name":"iMacPr0n",
-                      "username":"imacpr0n",
-                      "picture_url":"https:\/\/f002.backblazeb2.com\/file\/files-gab\/user\/5a2f2b3723a63.jpeg",
-                      "verified":false,
-                      "is_donor":false,
-                      "is_investor":false,
-                      "is_pro":false,
-                      "is_private":false,
-                      "is_premium":false
-                     },
-           "post":{"id":37647308,
-                   "created_at":"2018-10-06T09:38:11+00:00",
-                   "revised_at":null,
-                   "edited":false,
-                   "body":"Test post with attached image.",
-                   "body_html":"<p>Test post with attached image.<\/p>",
-                   "body_html_summary":"<p>Test post with attached image.<\/p>",
-                   "body_html_summary_truncated":false,
-                   "only_emoji":false,
-                   "liked":false,
-                   "disliked":false,
-                   "bookmarked":false,
-                   "repost":false,
-                   "reported":false,
-                   "score":0,
-                   "like_count":0,
-                   "dislike_count":0,
-                   "reply_count":0,
-                   "repost_count":0,
-                   "is_quote":false,
-                   "is_reply":false,
-                   "is_replies_disabled":false,
-                   "embed":{"html":null,"iframe":null},
-                   "attachment":{"type":"media",
-                                 "value":[{"id":"285afec2-44f8-4d16-992a-c8522e9e5b8b",
-                                           "url_thumbnail":"https:\/\/f002.backblazeb2.com\/file\/files-gab\/image\/bb-5bb8815dc80d8.jpeg",
-                                           "url_full":"https:\/\/f002.backblazeb2.com\/file\/files-gab\/image\/bb-5bb8815dc84d3.jpeg",
-                                           "width":526,
-                                           "height":52
-                                          }]},
-                   "category":null,
-                   "category_details":null,
-                   "language":"en",
-                   "nsfw":false,
-                   "is_premium":false,
-                   "is_locked":false,
-                   "premium_min_tier":0,
-                   "current_tier":0,
-                   "user":{"id":335174,
-                           "name":"iMacPr0n",
-                           "username":"imacpr0n",
-                           "picture_url":"https:\/\/f002.backblazeb2.com\/file\/files-gab\/user\/5a2f2b3723a63.jpeg",
-                           "verified":false,
-                           "is_donor":false,
-                           "is_investor":false,
-                           "is_pro":false,
-                           "is_private":false,
-                           "is_premium":false
-                          },
-                   "replies":{"data":[]}
-                  }
-          }
-
-   An [example](https://stackoverflow.com/questions/4238809/example-of-multipart-form-data/46150309#46150309) raw multipart form post:
-
-       POST / HTTP/1.1
-       HOST: host.example.com
-       Cookie: some_cookies...
-       Connection: Keep-Alive
-       Content-Type: multipart/form-data; boundary=12345
-
-       --12345
-       Content-Disposition: form-data; name="sometext"
-
-       some text that you wrote in your html form ...
-       --12345
-       Content-Disposition: form-data; name="name_of_post_request" filename="filename.xyz"
-
-       content of filename.xyz that you upload in your form with input[type=file]
-       --12345
-       Content-Disposition: form-data; name="image" filename="picture_of_sunset.jpg"
-
-       content of picture_of_sunset.jpg ...
-       --12345--
--}
-
-
-{-| Convenience type.
--}
-type alias FileName =
-    String
-
-
-{-| Convenience type.
--}
-type alias ContentType =
-    String
-
-
-{-| Convenience type.
-
-It would be nice to have a real 8-bit byte type here. Evan is working on it.
-
--}
-type alias Bytes =
-    String
-
-
 {-| Posting an image.
 
 The `String` that comes back is a media ID, to be used in `PostForm.media_attachments`.
@@ -881,17 +689,17 @@ postImageParts decoder token file =
     requestParts method [] body decoder token path
 
 
-boundary : String
-boundary =
+gabApiBoundary : String
+gabApiBoundary =
     "elm-gab-api-23skidoo"
 
 
 multipartFormContentType : String
 multipartFormContentType =
-    File.multipartFormContentType boundary
+    File.multipartFormContentType gabApiBoundary
 
 
 imageBody : File -> HttpBody
 imageBody file =
-    File.multipartFormData boundary file
+    (File.multipartFormData gabApiBoundary file ++ crlf ++ crlf)
         |> StringBody multipartFormContentType

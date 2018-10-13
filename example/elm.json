@@ -8,7 +8,7 @@
     "dependencies": {
         "direct": {
             "NoRedInk/elm-json-decode-pipeline": "1.0.0",
-            "billstclair/elm-custom-element": "1.0.2",
+            "billstclair/elm-custom-element": "1.1.0",
             "billstclair/elm-oauth-middleware": "2.0.0",
             "elm/browser": "1.0.0",
             "elm/core": "1.0.0",

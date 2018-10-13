@@ -17,13 +17,7 @@ module Main exposing (main)
 import Browser exposing (Document, UrlRequest(..))
 import Browser.Navigation as Navigation exposing (Key)
 import Char
-import CustomElement.FileListener as File
-    exposing
-        ( File
-        , fileId
-        , fileListener
-        , onLoad
-        )
+import CustomElement.FileListener as File exposing (File)
 import Dict exposing (Dict)
 import Gab
 import Gab.EncodeDecode as ED
@@ -103,6 +97,7 @@ type Thing
     | ActivityLogListThing Value
     | PostThing Value
     | PostedThing Value
+    | ImageUploadThing Value
 
 
 nullThing : Thing
@@ -146,8 +141,16 @@ type alias Model =
     , postBody : String
     , post : Maybe Post
     , file : Maybe File
+    , uploading : UploadingState
     , showRaw : Bool
     }
+
+
+type UploadingState
+    = NotUploading
+    | Uploading
+    | FinishedUploading String
+    | ErrorUploading String
 
 
 type Msg
@@ -171,6 +174,7 @@ type Msg
     | ReceiveActivityLogList (Result Http.Error Value)
     | ReceiveValue (Result Http.Error Value)
     | ReceivePost (Result Http.Error Value)
+    | ReceiveImageUpload (Result Http.Error Value)
     | ReceivePosted (Result Http.Error Value)
     | ToggleScope String
     | SetUsername String
@@ -285,6 +289,7 @@ init _ url key =
       , postBody = ""
       , post = Nothing
       , file = Nothing
+      , uploading = NotUploading
       , showRaw = True
       }
     , Cmd.batch
@@ -404,6 +409,18 @@ getPost : Model -> ( Model, Cmd Msg )
 getPost model =
     get model ReceivePost <|
         \token -> Gab.getPostParts JD.value token model.postId
+
+
+postFile : Model -> ( Model, Cmd Msg )
+postFile model =
+    case model.file of
+        Just file ->
+            get { model | uploading = Uploading } ReceiveImageUpload <|
+                \token -> Gab.postImageParts JD.value token file
+
+        _ ->
+            -- Shouldn't happen
+            ( model, Cmd.none )
 
 
 newPost : Model -> ( Model, Cmd Msg )
@@ -547,11 +564,7 @@ update msg model =
             )
 
         SetFile file ->
-            ( { model
-                | file = Just file
-              }
-            , Cmd.none
-            )
+            postFile { model | file = Just file }
 
         TogglePrettify ->
             ( { model | prettify = not model.prettify }
@@ -700,6 +713,9 @@ update msg model =
         ReceivePosted result ->
             receiveThing PostedThing result model
 
+        ReceiveImageUpload result ->
+            receiveImageUpload result model
+
 
 receiveUserThing : Bool -> Result Http.Error Value -> Model -> ( Model, Cmd Msg )
 receiveUserThing save result model =
@@ -741,6 +757,33 @@ receivePost result model =
                             { model | post = Just post }
     in
     receiveThing PostThing result mod
+
+
+receiveImageUpload : Result Http.Error Value -> Model -> ( Model, Cmd Msg )
+receiveImageUpload result model =
+    let
+        mod =
+            case result of
+                Err err ->
+                    { model
+                        | uploading =
+                            ErrorUploading <| Debug.toString err
+                    }
+
+                Ok value ->
+                    case JD.decodeValue ED.mediaIdDecoder value of
+                        Err err ->
+                            { model
+                                | uploading =
+                                    ErrorUploading <| Debug.toString err
+                            }
+
+                        Ok id ->
+                            { model
+                                | uploading = FinishedUploading id
+                            }
+    in
+    receiveThing ImageUploadThing result mod
 
 
 receiveThing : (Value -> Thing) -> Result Http.Error Value -> Model -> ( Model, Cmd Msg )
@@ -795,6 +838,9 @@ decodeEncode thing =
 
         PostedThing value ->
             doDecodeEncode ED.activityLogDecoder ED.activityLogEncoder value
+
+        ImageUploadThing value ->
+            doDecodeEncode ED.mediaIdDecoder ED.mediaIdEncoder value
 
 
 link : String -> String -> Html Msg
@@ -946,9 +992,13 @@ pageBody model =
                     , table []
                         [ tr []
                             [ td []
-                                [ b
-                                    [ maybeLink "Logged-in User:" <| loggedInUserUrl model
-                                    ]
+                                [ b [ text "Logged-in User: " ]
+                                , case model.loggedInUser of
+                                    Nothing ->
+                                        text ""
+
+                                    Just userid ->
+                                        maybeLink userid <| loggedInUserUrl model
                                 ]
                             , td []
                                 [ button [ onClick GetMe ]
@@ -1309,17 +1359,22 @@ pageBody model =
                                     ]
                                     [ text "New Post" ]
                                 , br
-                                , input
-                                    [ type_ "file"
-                                    , accept "image/*"
-                                    , id "thefile"
-                                    ]
-                                    []
-                                , fileListener
-                                    [ fileId "thefile"
-                                    , onLoad SetFile
-                                    ]
-                                    []
+                                , File.fileInput "thefile"
+                                    [ accept "image/*" ]
+                                    [ File.onLoad SetFile ]
+                                , br
+                                , case model.uploading of
+                                    NotUploading ->
+                                        text ""
+
+                                    Uploading ->
+                                        text "Uploading..."
+
+                                    FinishedUploading id ->
+                                        text <| "Uploaded, id: " ++ id
+
+                                    ErrorUploading err ->
+                                        text <| "Error uploading: " ++ err
                                 ]
                             , td []
                                 [ case model.file of
@@ -1361,7 +1416,9 @@ pageBody model =
                                     ++ req.url
                                     ++ "\n"
                                     ++ "\n"
-                                    ++ Gab.bodyToString 2 req.body
+                                    ++ (String.left 200 <|
+                                            Gab.bodyToString 2 req.body
+                                       )
                             ]
                         ]
             , case ( model.msg, model.reply, canHideRaw model ) of
