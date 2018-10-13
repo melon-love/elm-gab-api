@@ -27,7 +27,7 @@ import CustomElement.FileListener as File
 import Dict exposing (Dict)
 import Gab
 import Gab.EncodeDecode as ED
-import Gab.Types exposing (Post, PostForm, RequestParts, User)
+import Gab.Types exposing (ActivityLog, Post, PostForm, RequestParts, User)
 import Html
     exposing
         ( Attribute
@@ -102,6 +102,7 @@ type Thing
     | UserListThing Value
     | ActivityLogListThing Value
     | PostThing Value
+    | PostedThing Value
 
 
 nullThing : Thing
@@ -170,6 +171,7 @@ type Msg
     | ReceiveActivityLogList (Result Http.Error Value)
     | ReceiveValue (Result Http.Error Value)
     | ReceivePost (Result Http.Error Value)
+    | ReceivePosted (Result Http.Error Value)
     | ToggleScope String
     | SetUsername String
     | SetUserBefore String
@@ -406,7 +408,7 @@ getPost model =
 
 newPost : Model -> ( Model, Cmd Msg )
 newPost model =
-    get model ReceivePost <|
+    get model ReceivePosted <|
         \token -> Gab.newPostParts JD.value token (makePostForm model)
 
 
@@ -695,6 +697,9 @@ update msg model =
         ReceivePost result ->
             receivePost result model
 
+        ReceivePosted result ->
+            receiveThing PostedThing result model
+
 
 receiveUserThing : Bool -> Result Http.Error Value -> Model -> ( Model, Cmd Msg )
 receiveUserThing save result model =
@@ -787,6 +792,9 @@ decodeEncode thing =
 
         PostThing value ->
             doDecodeEncode ED.postDecoder ED.postEncoder value
+
+        PostedThing value ->
+            doDecodeEncode ED.activityLogDecoder ED.activityLogEncoder value
 
 
 link : String -> String -> Html Msg
@@ -898,7 +906,7 @@ scopeCheckboxes model =
 
 pageTitle : String
 pageTitle =
-    "Gap API Example"
+    "Gab API Explorer"
 
 
 view : Model -> Document Msg
@@ -1280,7 +1288,10 @@ pageBody model =
                                 ]
                             ]
                         , tr []
-                            [ td []
+                            [ td
+                                [ colspan 2
+                                , style "vertical-align" "top"
+                                ]
                                 [ b
                                     [ text "Post Body: "
                                     ]
@@ -1290,19 +1301,15 @@ pageBody model =
                                     , value model.postBody
                                     ]
                                     []
-                                ]
-                            , td []
-                                [ button
+                                , text " "
+                                , button
                                     [ disabled <| model.postBody == ""
                                     , onClick NewPost
                                     , title "Fillin 'Post Body' and click."
                                     ]
                                     [ text "New Post" ]
-                                ]
-                            ]
-                        , tr []
-                            [ td []
-                                [ input
+                                , br
+                                , input
                                     [ type_ "file"
                                     , accept "image/*"
                                     , id "thefile"
@@ -1321,8 +1328,8 @@ pageBody model =
 
                                     Just file ->
                                         img
-                                            [ src <| File.fileToDataUri file
-                                            , width 200
+                                            [ src file.dataUrl
+                                            , width 100
                                             ]
                                             []
                                 ]

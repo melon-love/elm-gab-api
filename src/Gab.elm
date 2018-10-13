@@ -103,7 +103,8 @@ import CustomElement.FileListener as File exposing (File)
 import Gab.EncodeDecode as ED
 import Gab.Types
     exposing
-        ( ActivityLogList
+        ( ActivityLog
+        , ActivityLogList
         , HttpBody(..)
         , Post
         , PostForm
@@ -665,9 +666,9 @@ repostParts =
 
 {-| Posting uses JSON, which is not in the spec, but is what the web client does.
 -}
-newPost : Token -> PostForm -> Http.Request Value
+newPost : Token -> PostForm -> Http.Request ActivityLog
 newPost token postForm =
-    newPostParts JD.value token postForm
+    newPostParts ED.activityLogDecoder token postForm
         |> request
 
 

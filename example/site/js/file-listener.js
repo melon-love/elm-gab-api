@@ -35,14 +35,13 @@ function setupFileListener() {
   function attachFile(listener, fileId, count) {
     var file = getFile(fileId);
     if (file) {
-      this._file = file;
-      var listener = this;
+      listener._file = file;
       listener._onChange = function() {
         // `this` should be the file here. Use `file` instead?
         onFileChange(listener, this);
       };
       // Will Elm's DOM synchronization remove this? We'll see.
-      file.addEventListener('change', this._onChange, false);
+      file.addEventListener('change', listener._onChange, false);
     } else {
       count = 1 + (count || 0);
       if (count > 10) return;
@@ -57,17 +56,23 @@ function setupFileListener() {
 
     var reader = new FileReader();
     reader.onload = function(e) {
-      listener._contents =
-        { name: file.name,
-          lastModified: file.lastModified,
-          type: file.type,
-          size: file.size,
-          data: e.target.result
+      var data = e.target.result;
+      reader = new FileReader();
+      reader.onload = function(e) {
+        listener._contents =
+          { name: file.name,
+            lastModified: file.lastModified,
+            mimeType: file.type,
+            size: file.size,
+            data: data,
+            dataUrl: e.target.result
         };
-      console.log('Loaded:', listener._contents);
-      listener.dispatchEvent(new CustomEvent('load'));
+        //console.log('Loaded:', listener._contents);
+        listener.dispatchEvent(new CustomEvent('load'));
+      }
+      reader.readAsDataURL(file);
     }
-    console.log('Reading:', file);
+    //console.log('Reading:', file);
     reader.readAsBinaryString(file);
   }
 

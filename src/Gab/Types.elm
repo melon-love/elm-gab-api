@@ -171,6 +171,9 @@ type alias Post =
     , revised_at : Maybe String
     , edited : Bool
     , body : String
+    , body_html : Maybe String
+    , body_html_summary : Maybe String
+    , body_html_summary_truncated : Bool
     , only_emoji : Bool
     , liked : Bool
     , disliked : Bool

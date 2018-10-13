@@ -254,13 +254,16 @@ recursivePostListDecoder =
     JD.field "data" <| JD.list recursivePostDecoder
 
 
-makePost : Int -> String -> Maybe String -> Bool -> String -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Int -> Int -> Int -> Int -> Int -> Bool -> Bool -> Bool -> Maybe Embed -> Attachment -> Maybe Int -> Maybe CategoryDetails -> Maybe String -> Bool -> Bool -> Bool -> User -> Maybe Topic -> Maybe Post -> PostList -> Post
-makePost id created_at revised_at edited body only_emoji liked disliked bookmarked repost reported score like_count dislike_count reply_count repost_count is_quote is_reply is_replies_disabled embed attachment category category_details language nsfw is_premium is_locked user topic parent replies =
+makePost : Int -> String -> Maybe String -> Bool -> String -> Maybe String -> Maybe String -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Int -> Int -> Int -> Int -> Int -> Bool -> Bool -> Bool -> Maybe Embed -> Attachment -> Maybe Int -> Maybe CategoryDetails -> Maybe String -> Bool -> Bool -> Bool -> User -> Maybe Topic -> Maybe Post -> PostList -> Post
+makePost id created_at revised_at edited body body_html body_html_summary body_html_summary_truncated only_emoji liked disliked bookmarked repost reported score like_count dislike_count reply_count repost_count is_quote is_reply is_replies_disabled embed attachment category category_details language nsfw is_premium is_locked user topic parent replies =
     { id = id
     , created_at = created_at
     , revised_at = revised_at
     , edited = edited
     , body = body
+    , body_html = body_html
+    , body_html_summary = body_html_summary
+    , body_html_summary_truncated = body_html_summary_truncated
     , only_emoji = only_emoji
     , liked = liked
     , disliked = disliked
@@ -299,6 +302,9 @@ postDecoder =
         |> optional "revised_at" (JD.nullable string) Nothing
         |> required "edited" bool
         |> required "body" string
+        |> optional "body_html" (JD.nullable string) Nothing
+        |> optional "body_html_summary" (JD.nullable string) Nothing
+        |> optional "body_html_summary_truncated" JD.bool False
         |> required "only_emoji" bool
         |> required "liked" bool
         |> required "disliked" bool
@@ -340,8 +346,24 @@ postEncoder post =
               , ( "revised_at", maybeString post.revised_at )
               , ( "edited", JE.bool post.edited )
               , ( "body", JE.string post.body )
-              , ( "only_emoji", JE.bool post.only_emoji )
-              , ( "liked", JE.bool post.liked )
+              ]
+            , case post.body_html of
+                Nothing ->
+                    []
+
+                Just html ->
+                    [ ( "body_html", JE.string html )
+                    , ( "body_html_summary", maybeString post.body_html_summary )
+                    , ( "body_html_summary_truncated"
+                      , JE.bool post.body_html_summary_truncated
+                      )
+                    ]
+            , if post.only_emoji then
+                [ ( "only_emoji", JE.bool True ) ]
+
+              else
+                []
+            , [ ( "liked", JE.bool post.liked )
               , ( "disliked", JE.bool post.disliked )
               , ( "bookmarked", JE.bool post.bookmarked )
               , ( "repost", JE.bool post.repost )
