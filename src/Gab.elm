@@ -691,7 +691,7 @@ postImageParts decoder token file =
 
 gabApiBoundary : String
 gabApiBoundary =
-    "elm-gab-api-23skidoo"
+    "Elm-Gab-API-23skidoo"
 
 
 multipartFormContentType : String
@@ -701,5 +701,47 @@ multipartFormContentType =
 
 imageBody : File -> HttpBody
 imageBody file =
-    (File.multipartFormData gabApiBoundary file ++ crlf ++ crlf)
+    multipartFormData gabApiBoundary file
         |> StringBody multipartFormContentType
+
+
+{-| Convert the `dataUrl` in the `File` to just it's data, without the URL prefix.
+-}
+fileDataBase64 : File -> String
+fileDataBase64 file =
+    String.split "," file.dataUrl
+        |> List.tail
+        |> Maybe.withDefault []
+        |> String.join ","
+
+
+{-| Turn a `boundary` string and a `File` into the body of a multipart form post.
+
+This is suitable as the second parameter to `Http.stringBody`.
+
+-}
+multipartFormData : String -> File -> String
+multipartFormData boundary file =
+    -- In case you're tempted to copy this for your own binary POST,
+    -- it depends on a patch to XMLHttpRequest.prototype.send
+    -- in example/site/js/file-listener.js
+    -- Without that patch, the binary data will be converted to UTF-8,
+    -- And the upload will fail.
+    -- The patch kicks in on finding a header line beginning with
+    -- "Content-Type: image"
+    "--"
+        ++ boundary
+        ++ crlf
+        ++ "Content-Disposition: form-data; name=\"file\"; filename=\""
+        ++ file.name
+        ++ "\""
+        ++ crlf
+        ++ "Content-Type: "
+        ++ file.mimeType
+        ++ crlf
+        ++ crlf
+        ++ file.data
+        ++ crlf
+        ++ "--"
+        ++ boundary
+        ++ "--"
