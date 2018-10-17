@@ -425,7 +425,9 @@ postFile model =
 
 newPost : Model -> ( Model, Cmd Msg )
 newPost model =
-    get model ReceivePosted <|
+    get { model | file = Nothing, uploading = NotUploading }
+        ReceivePosted
+    <|
         \token -> Gab.newPostParts JD.value token (makePostForm model)
 
 
@@ -771,9 +773,14 @@ receiveImageUpload result model =
                             }
 
                         Ok id ->
-                            { model
-                                | uploading = FinishedUploading id
-                            }
+                            case model.uploading of
+                                Uploading ->
+                                    { model
+                                        | uploading = FinishedUploading id
+                                    }
+
+                                _ ->
+                                    model
     in
     receiveThing ImageUploadThing result mod
 
