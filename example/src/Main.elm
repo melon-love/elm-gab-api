@@ -1657,7 +1657,7 @@ footerDiv model =
         , br
         , br
         , span [ style "margin-left" "5em" ]
-            [ logoLink "https://github.com/billstclair/elm-gab-api"
+            [ logoLink "https://github.com/melon-love/elm-gab-api"
                 "GitHub-Mark-32px.png"
                 "GitHub source code"
                 32
