@@ -17,6 +17,7 @@ module Main exposing (main)
 import Browser exposing (Document, UrlRequest(..))
 import Browser.Navigation as Navigation exposing (Key)
 import Char
+import Cmd.Extra exposing (withCmd, withCmds, withNoCmd)
 import CustomElement.FileListener as File exposing (File)
 import Dict exposing (Dict)
 import Gab
@@ -175,6 +176,7 @@ type Msg
     | ReceiveValue (Result Http.Error Value)
     | ReceivePost (Result Http.Error Value)
     | ReceiveImageUpload (Result Http.Error Value)
+    | AbortImageUpload
     | ReceivePosted (Result Http.Error Value)
     | ToggleScope String
     | SetUsername String
@@ -304,11 +306,10 @@ get : Model -> (Result Http.Error Value -> Msg) -> (OAuth.Token -> RequestParts 
 get model receiver makeRequest =
     case model.token of
         Nothing ->
-            ( { model
+            { model
                 | msg = Just "You must login before getting logged-in user information."
-              }
-            , Cmd.none
-            )
+            }
+                |> withNoCmd
 
         Just token ->
             case model.authorization of
@@ -317,18 +318,17 @@ get model receiver makeRequest =
                         req =
                             makeRequest token.token
                     in
-                    ( { model
+                    { model
                         | request = Just req
                         , replyThing = nullThing
                         , reply = Nothing
-                      }
-                    , Http.send receiver <| Gab.request req
-                    )
+                    }
+                        |> withCmd
+                            (Http.send receiver <| Gab.request req)
 
                 _ ->
-                    ( { model | msg = Just "No authorization loaded." }
-                    , Cmd.none
-                    )
+                    { model | msg = Just "No authorization loaded." }
+                        |> withNoCmd
 
 
 getMe : Model -> ( Model, Cmd Msg )
@@ -420,7 +420,7 @@ postFile model =
 
         _ ->
             -- Shouldn't happen
-            ( model, Cmd.none )
+            model |> withNoCmd
 
 
 newPost : Model -> ( Model, Cmd Msg )
@@ -444,7 +444,13 @@ makePostForm model =
     , gif = Nothing
     , topic = Nothing
     , group = Nothing
-    , media_attachments = []
+    , media_attachments =
+        case model.uploading of
+            FinishedUploading id ->
+                [ id ]
+
+            _ ->
+                []
     , premium_min_tier = Nothing
     , poll = False
     , poll_option_1 = Nothing
@@ -491,7 +497,7 @@ update msg model =
             )
 
         HandleUrlChange url ->
-            ( model, Cmd.none )
+            model |> withNoCmd
 
         ToggleScope scope ->
             let
@@ -502,86 +508,72 @@ update msg model =
                     else
                         scope :: model.scopes
             in
-            ( { model | scopes = scopes }
-            , Cmd.none
-            )
+            { model | scopes = scopes }
+                |> withNoCmd
 
         SetUsername username ->
-            ( { model
+            { model
                 | username = username
                 , userProfile = Nothing
-              }
-            , Cmd.none
-            )
+            }
+                |> withNoCmd
 
         SetUserBefore before ->
             case String.toInt before of
                 Nothing ->
                     if before == "" then
-                        ( { model | userBefore = 0 }
-                        , Cmd.none
-                        )
+                        { model | userBefore = 0 }
+                            |> withNoCmd
 
                     else
-                        ( model
-                        , Cmd.none
-                        )
+                        model |> withNoCmd
 
                 Just a ->
-                    ( { model | userBefore = a }
-                    , Cmd.none
-                    )
+                    { model | userBefore = a }
+                        |> withNoCmd
 
         SetPostUser postUser ->
-            ( { model | postUser = postUser }
-            , Cmd.none
-            )
+            { model | postUser = postUser }
+                |> withNoCmd
 
         SetPostGroup postGroup ->
-            ( { model | postGroup = postGroup }
-            , Cmd.none
-            )
+            { model | postGroup = postGroup }
+                |> withNoCmd
 
         SetPostBefore before ->
-            ( { model | postBefore = before }
-            , Cmd.none
-            )
+            { model | postBefore = before }
+                |> withNoCmd
 
         SetPostId id ->
-            ( { model
+            { model
                 | postId = id
                 , post = Nothing
-              }
-            , Cmd.none
-            )
+            }
+                |> withNoCmd
 
         SetPostBody postBody ->
-            ( { model
+            { model
                 | postBody = postBody
                 , post = Nothing
-              }
-            , Cmd.none
-            )
+            }
+                |> withNoCmd
 
         SetFile file ->
             postFile { model | file = Just file }
 
         TogglePrettify ->
-            ( { model | prettify = not model.prettify }
-            , Cmd.none
-            )
+            { model | prettify = not model.prettify }
+                |> withNoCmd
 
         ShowHideDecoded ->
-            ( { model | showRaw = not model.showRaw }
-            , Cmd.none
-            )
+            { model | showRaw = not model.showRaw }
+                |> withNoCmd
 
         ReceiveAuthorization result ->
             case result of
                 Err err ->
-                    ( { model | msg = Just <| Debug.toString err }
-                    , Cmd.none
-                    )
+                    { model | msg = Just <| Debug.toString err }
+                        |> withNoCmd
 
                 Ok authorization ->
                     let
@@ -604,7 +596,7 @@ update msg model =
                                     , model.replyThing
                                     )
                     in
-                    ( lookupProvider
+                    lookupProvider
                         { model
                             | authorization = Just authorization
                             , scopes =
@@ -618,46 +610,42 @@ update msg model =
                             , replyThing = replyThing
                             , reply = reply
                         }
-                    , Cmd.batch
-                        (case model.token of
-                            Nothing ->
-                                []
+                        |> withCmd
+                            (case model.token of
+                                Nothing ->
+                                    Cmd.none
 
-                            Just token ->
-                                [ Http.send ReceiveLoggedInUser <|
-                                    Gab.me token.token
-                                ]
-                        )
-                    )
+                                Just token ->
+                                    Http.send ReceiveLoggedInUser <|
+                                        Gab.me token.token
+                            )
 
         ReceiveLoggedInUser result ->
             case result of
                 Err _ ->
-                    ( { model | msg = Just "Error getting logged-in user name." }
-                    , Cmd.none
-                    )
+                    { model | msg = Just "Error getting logged-in user name." }
+                        |> withNoCmd
 
                 Ok user ->
-                    ( { model | loggedInUser = Just user.username }
-                    , Cmd.none
-                    )
+                    { model | loggedInUser = Just user.username }
+                        |> withNoCmd
 
         Login ->
             case model.tokenAuthorization of
                 Nothing ->
-                    ( { model | msg = Just "No provider selected." }
-                    , Cmd.none
-                    )
+                    { model | msg = Just "No provider selected." }
+                        |> withNoCmd
 
                 Just authorization ->
-                    ( model
-                    , case authorize { authorization | scope = model.scopes } of
-                        Nothing ->
-                            Cmd.none
+                    model
+                        |> withCmd
+                            (case authorize { authorization | scope = model.scopes } of
+                                Nothing ->
+                                    Cmd.none
 
-                        Just url ->
-                            Navigation.load <| Url.toString url
-                    )
+                                Just url ->
+                                    Navigation.load <| Url.toString url
+                            )
 
         GetMe ->
             getMe model
@@ -715,6 +703,10 @@ update msg model =
 
         ReceiveImageUpload result ->
             receiveImageUpload result model
+
+        AbortImageUpload ->
+            { model | file = Nothing, uploading = NotUploading }
+                |> withNoCmd
 
 
 receiveUserThing : Bool -> Result Http.Error Value -> Model -> ( Model, Cmd Msg )
@@ -790,22 +782,20 @@ receiveThing : (Value -> Thing) -> Result Http.Error Value -> Model -> ( Model, 
 receiveThing thingTag result model =
     case result of
         Err err ->
-            ( { model
+            { model
                 | reply = Nothing
                 , msg = Just <| Debug.toString err
-              }
-            , Cmd.none
-            )
+            }
+                |> withNoCmd
 
         Ok reply ->
-            ( { model
+            { model
                 | replyType = "API Response"
                 , reply = Just reply
                 , replyThing = thingTag reply
                 , msg = Nothing
-              }
-            , Cmd.none
-            )
+            }
+                |> withNoCmd
 
 
 doDecodeEncode : Decoder a -> (a -> Value) -> Value -> Value
@@ -1353,7 +1343,15 @@ pageBody model =
                                     []
                                 , text " "
                                 , button
-                                    [ disabled <| model.postBody == ""
+                                    [ disabled <|
+                                        (model.postBody == "")
+                                            || (model.uploading == Uploading)
+                                    , title <|
+                                        if model.uploading == Uploading then
+                                            "Wait for the image to upload"
+
+                                        else
+                                            ""
                                     , onClick NewPost
                                     , title "Fillin 'Post Body' and click."
                                     ]
@@ -1385,6 +1383,13 @@ pageBody model =
                                         img
                                             [ src file.dataUrl
                                             , width 100
+                                            , title <|
+                                                if model.uploading == Uploading then
+                                                    "Click to stop upload."
+
+                                                else
+                                                    ""
+                                            , onClick AbortImageUpload
                                             ]
                                             []
                                 ]
