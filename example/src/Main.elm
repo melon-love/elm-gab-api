@@ -90,6 +90,8 @@ import PortFunnel.LocalStorage as LocalStorage
 import PortFunnels exposing (FunnelDict, Handler(..))
 import String
 import String.Extra as SE
+import Task
+import Time exposing (Posix)
 import Url exposing (Url)
 
 
@@ -194,6 +196,7 @@ type Msg
     | NewPost
     | TogglePrettify
     | ShowHideDecoded
+    | PersistResponseToken ResponseToken Posix
     | ProcessLocalStorage Value
 
 
@@ -274,42 +277,47 @@ init _ url key =
                     , tok.scope
                     )
     in
-    ( { key = key
-      , funnelState = PortFunnels.initialState localStoragePrefix
-      , token = token
-      , state = state
-      , msg = msg
-      , request = Nothing
-      , loggedInUser = Nothing
-      , replyType = "Token"
-      , replyThing =
-            ValueThing JE.null
-      , reply = reply
-      , redirectBackUri = locationToRedirectBackUri url
-      , authorization = Nothing
-      , scopes = scopes
-      , receivedScopes = scopes
-      , tokenAuthorization = Nothing
-      , prettify = True
-      , username = "xossbow"
-      , userBefore = 0
-      , userProfile = Nothing
-      , postUser = "xossbow"
-      , postGroup = "62c38c34-0559-4e2e-a382-98b1ba9acf18"
-      , postBefore = ""
-      , postId = ""
-      , postBody = ""
-      , post = Nothing
-      , file = Nothing
-      , uploading = NotUploading
-      , showRaw = True
-      }
-    , Cmd.batch
-        [ Http.send ReceiveAuthorization <|
-            getAuthorization False "authorization.json"
-        , Navigation.replaceUrl key "#"
-        ]
-    )
+    { key = key
+    , funnelState = PortFunnels.initialState localStoragePrefix
+    , token = token
+    , state = state
+    , msg = msg
+    , request = Nothing
+    , loggedInUser = Nothing
+    , replyType = "Token"
+    , replyThing =
+        ValueThing JE.null
+    , reply = reply
+    , redirectBackUri = locationToRedirectBackUri url
+    , authorization = Nothing
+    , scopes = scopes
+    , receivedScopes = scopes
+    , tokenAuthorization = Nothing
+    , prettify = True
+    , username = "xossbow"
+    , userBefore = 0
+    , userProfile = Nothing
+    , postUser = "xossbow"
+    , postGroup = "62c38c34-0559-4e2e-a382-98b1ba9acf18"
+    , postBefore = ""
+    , postId = ""
+    , postBody = ""
+    , post = Nothing
+    , file = Nothing
+    , uploading = NotUploading
+    , showRaw = True
+    }
+        |> withCmds
+            [ Http.send ReceiveAuthorization <|
+                getAuthorization False "authorization.json"
+            , Navigation.replaceUrl key "#"
+            , case token of
+                Just t ->
+                    Task.perform (PersistResponseToken t) Time.now
+
+                Nothing ->
+                    Cmd.none
+            ]
 
 
 storageHandler : LocalStorage.Response -> PortFunnels.State -> Model -> ( Model, Cmd Msg )
@@ -731,6 +739,20 @@ update msg model =
             { model | file = Nothing, uploading = NotUploading }
                 |> withNoCmd
 
+        PersistResponseToken token time ->
+            let
+                savedToken =
+                    Gab.savedTokenFromResponseToken time token
+
+                value =
+                    ED.savedTokenEncoder savedToken
+            in
+            ( model
+            , localStorageSend
+                (LocalStorage.put tokenKey <| Just value)
+                model
+            )
+
         ProcessLocalStorage value ->
             case
                 PortFunnels.processValue funnelDict
@@ -743,6 +765,11 @@ update msg model =
 
                 Ok res ->
                     res
+
+
+tokenKey : String
+tokenKey =
+    "token"
 
 
 funnelDict : FunnelDict Model Msg
