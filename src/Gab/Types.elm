@@ -19,6 +19,7 @@ module Gab.Types exposing
     , Embed, CategoryDetails, Topic, RelatedPosts(..)
     , Attachment(..), UrlRecord, MediaRecord, UnknownAttachmentRecord
     , PostForm
+    , SavedToken
     )
 
 {-| Shared Types for the Gab API.
@@ -59,10 +60,16 @@ module Gab.Types exposing
 
 @docs PostForm
 
+
+# Persistent tokens
+
+@docs SavedToken
+
 -}
 
 import Http
 import Json.Encode exposing (Value)
+import OAuth exposing (Token)
 
 
 {-| A custom type for request bodies.
@@ -337,4 +344,17 @@ type alias PostForm =
     , poll_option_2 : Maybe String
     , poll_option_3 : Maybe String
     , poll_option_4 : Maybe String
+    }
+
+
+{-| Persistent form of an `OAuthMiddleware.ResponseToken`.
+
+Use `Gab.savedTokenFromResponseToken` to make one of these.
+
+-}
+type alias SavedToken =
+    { expiresAt : Maybe Int
+    , refreshToken : Maybe Token
+    , scope : List String
+    , token : Token
     }

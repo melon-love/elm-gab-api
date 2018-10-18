@@ -17,6 +17,7 @@ module Gab.EncodeDecode exposing
     , postDecoder, postEncoder, postListDecoder, postListEncoder
     , postFormEncoder
     , mediaIdDecoder, mediaIdEncoder
+    , savedTokenEncoder, savedTokenDecoder
     )
 
 {-| Encoders and decoders for the types.
@@ -43,6 +44,11 @@ module Gab.EncodeDecode exposing
 @docs postFormEncoder
 @docs mediaIdDecoder, mediaIdEncoder
 
+
+# Persistent tokens
+
+@docs savedTokenEncoder, savedTokenDecoder
+
 -}
 
 import Gab.Types
@@ -57,6 +63,7 @@ import Gab.Types
         , PostForm
         , PostList
         , RelatedPosts(..)
+        , SavedToken
         , Topic
         , UnknownAttachmentRecord
         , UrlRecord
@@ -66,6 +73,7 @@ import Gab.Types
 import Json.Decode as JD exposing (Decoder, bool, float, int, maybe, string)
 import Json.Decode.Pipeline as DP exposing (optional, required)
 import Json.Encode as JE exposing (Value)
+import OAuth exposing (Token)
 
 
 {-| Decode a `User`.
@@ -783,3 +791,68 @@ mediaIdDecoder =
 mediaIdEncoder : String -> Value
 mediaIdEncoder id =
     JE.object [ ( "id", JE.string id ) ]
+
+
+tokenDecoder : Decoder (Maybe Token)
+tokenDecoder =
+    JD.nullable JD.string
+        |> JD.andThen
+            (\ms ->
+                case ms of
+                    Nothing ->
+                        JD.succeed Nothing
+
+                    Just s ->
+                        JD.succeed <| OAuth.tokenFromString s
+            )
+
+
+tokenEncoder : Maybe Token -> Value
+tokenEncoder token =
+    case token of
+        Nothing ->
+            JE.null
+
+        Just t ->
+            JE.string <| OAuth.tokenToString t
+
+
+{-| Decode a persistent token.
+-}
+savedTokenDecoder : Decoder SavedToken
+savedTokenDecoder =
+    JD.succeed SavedToken
+        |> required "expiresAt" (JD.nullable JD.int)
+        |> required "refreshToken" tokenDecoder
+        |> required "scope" (JD.list JD.string)
+        |> required "token"
+            (tokenDecoder
+                |> JD.andThen
+                    (\mt ->
+                        case mt of
+                            Nothing ->
+                                JD.fail "Can't decode token."
+
+                            Just t ->
+                                JD.succeed t
+                    )
+            )
+
+
+{-| Encode a persistent token.
+-}
+savedTokenEncoder : SavedToken -> Value
+savedTokenEncoder token =
+    JE.object
+        [ ( "expiresAt"
+          , case token.expiresAt of
+                Nothing ->
+                    JE.null
+
+                Just expiresAt ->
+                    JE.int expiresAt
+          )
+        , ( "refreshToken", tokenEncoder token.refreshToken )
+        , ( "scope", JE.list JE.string token.scope )
+        , ( "token", tokenEncoder <| Just token.token )
+        ]

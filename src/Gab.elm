@@ -25,6 +25,7 @@ module Gab exposing
     , newPost, newPostParts
     , postImage, postImageParts
     , doParts, doUsersParts, doPostsParts
+    , savedTokenFromResponseToken
     , gabApiUri, request, getParts, requestParts
     , bodyToString
     )
@@ -87,6 +88,11 @@ The requests all come in two flavors, one which has the decoder built in, and re
 @docs doParts, doUsersParts, doPostsParts
 
 
+# Persistent tokens
+
+@docs savedTokenFromResponseToken
+
+
 # Low-level Http interface
 
 @docs gabApiUri, request, getParts, requestParts
@@ -109,6 +115,7 @@ import Gab.Types
         , Post
         , PostForm
         , RequestParts
+        , SavedToken
         , User
         , UserList
         )
@@ -116,6 +123,8 @@ import Http
 import Json.Decode as JD exposing (Decoder)
 import Json.Encode as JE exposing (Value)
 import OAuth exposing (Token)
+import OAuthMiddleware.ResponseToken exposing (ResponseToken)
+import Time exposing (Posix)
 import Url.Builder as Builder
 
 
@@ -703,3 +712,23 @@ imageBody : File -> HttpBody
 imageBody file =
     File.multipartFormData gabApiBoundary file
         |> StringBody multipartFormContentType
+
+
+{-| Convert an `OAuthMiddleWare.ResponseToken` to `Gab.Types.SavedToken`.
+
+Use `Gab.EncodeDecode.savedTokenEncoder` and `Gab.EncodeDecode.savedTokenDecoder` to persist it.
+
+-}
+savedTokenFromResponseToken : Posix -> ResponseToken -> SavedToken
+savedTokenFromResponseToken time token =
+    { expiresAt =
+        case token.expiresIn of
+            Just expiresIn ->
+                Just <| Time.posixToMillis time + (1000 * expiresIn)
+
+            Nothing ->
+                Nothing
+    , refreshToken = token.refreshToken
+    , scope = token.scope
+    , token = token.token
+    }
