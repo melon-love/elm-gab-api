@@ -86,6 +86,8 @@ import OAuthMiddleware.EncodeDecode
         ( authorizationEncoder
         , responseTokenEncoder
         )
+import PortFunnel.LocalStorage as LocalStorage
+import PortFunnels exposing (FunnelDict, Handler(..))
 import String
 import String.Extra as SE
 import Url exposing (Url)
@@ -118,6 +120,7 @@ allScopes =
 
 type alias Model =
     { key : Key
+    , funnelState : PortFunnels.State
     , scopes : List String
     , receivedScopes : List String
     , token : Maybe ResponseToken
@@ -191,6 +194,7 @@ type Msg
     | NewPost
     | TogglePrettify
     | ShowHideDecoded
+    | ProcessLocalStorage Value
 
 
 {-| GitHub requires the "User-Agent" header.
@@ -232,10 +236,15 @@ main =
         { init = init
         , view = view
         , update = update
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = PortFunnels.subscriptions ProcessLocalStorage
         , onUrlRequest = HandleUrlRequest
         , onUrlChange = HandleUrlChange
         }
+
+
+localStoragePrefix : String
+localStoragePrefix =
+    "gab-api-example"
 
 
 init : () -> Url -> Key -> ( Model, Cmd Msg )
@@ -266,6 +275,7 @@ init _ url key =
                     )
     in
     ( { key = key
+      , funnelState = PortFunnels.initialState localStoragePrefix
       , token = token
       , state = state
       , msg = msg
@@ -300,6 +310,17 @@ init _ url key =
         , Navigation.replaceUrl key "#"
         ]
     )
+
+
+storageHandler : LocalStorage.Response -> PortFunnels.State -> Model -> ( Model, Cmd Msg )
+storageHandler response state model =
+    case response of
+        LocalStorage.GetResponse { key, value } ->
+            -- TODO
+            model |> withNoCmd
+
+        _ ->
+            model |> withNoCmd
 
 
 get : Model -> (Result Http.Error Value -> Msg) -> (OAuth.Token -> RequestParts Value) -> ( Model, Cmd Msg )
@@ -709,6 +730,36 @@ update msg model =
         AbortImageUpload ->
             { model | file = Nothing, uploading = NotUploading }
                 |> withNoCmd
+
+        ProcessLocalStorage value ->
+            case
+                PortFunnels.processValue funnelDict
+                    value
+                    model.funnelState
+                    model
+            of
+                Err error ->
+                    { model | msg = Just error } |> withNoCmd
+
+                Ok res ->
+                    res
+
+
+funnelDict : FunnelDict Model Msg
+funnelDict =
+    PortFunnels.makeFunnelDict [ LocalStorageHandler storageHandler ] getCmdPort
+
+
+getCmdPort : String -> Model -> (Value -> Cmd Msg)
+getCmdPort moduleName model =
+    PortFunnels.getCmdPort ProcessLocalStorage moduleName False
+
+
+localStorageSend : LocalStorage.Message -> Model -> Cmd Msg
+localStorageSend message model =
+    LocalStorage.send (getCmdPort LocalStorage.moduleName model)
+        message
+        model.funnelState.storage
 
 
 receiveUserThing : Bool -> Result Http.Error Value -> Model -> ( Model, Cmd Msg )
