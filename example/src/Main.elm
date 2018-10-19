@@ -264,19 +264,25 @@ init _ url key =
         tokenAndState =
             receiveTokenAndState url
 
-        ( token, state, msg ) =
+        ( ( token, savedToken ), state, msg ) =
             case tokenAndState of
                 TokenAndState tok stat ->
-                    ( Just tok, stat, Nothing )
+                    let
+                        st =
+                            Gab.savedTokenFromResponseToken
+                                (Time.millisToPosix 0)
+                                tok
+                    in
+                    ( ( Just tok, Just st ), stat, Nothing )
 
                 TokenErrorAndState m stat ->
-                    ( Nothing, stat, Just m )
+                    ( ( Nothing, Nothing ), stat, Just m )
 
                 TokenDecodeError m ->
-                    ( Nothing, Nothing, Just m )
+                    ( ( Nothing, Nothing ), Nothing, Just m )
 
                 NoToken ->
-                    ( Nothing, Nothing, Nothing )
+                    ( ( Nothing, Nothing ), Nothing, Nothing )
 
         ( reply, scopes ) =
             case token of
@@ -287,15 +293,6 @@ init _ url key =
                     ( Just <| responseTokenEncoder tok
                     , tok.scope
                     )
-
-        savedToken =
-            case token of
-                Nothing ->
-                    Nothing
-
-                Just tok ->
-                    Just <|
-                        Gab.savedTokenFromResponseToken (Time.millisToPosix 0) tok
 
         model =
             { key = key
