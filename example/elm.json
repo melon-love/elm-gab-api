@@ -21,8 +21,7 @@
             "elm/time": "1.0.0",
             "elm/url": "1.0.0",
             "elm-community/string-extra": "4.0.0",
-            "truqu/elm-oauth2": "4.0.0",
-            "waratuman/elm-coder": "3.0.0"
+            "truqu/elm-oauth2": "4.0.0"
         },
         "indirect": {
             "elm/parser": "1.1.0",
