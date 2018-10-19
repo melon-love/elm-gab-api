@@ -657,7 +657,7 @@ update msg model =
                 Ok authorization ->
                     let
                         ( replyType, reply, replyThing ) =
-                            case ( model.token, model.msg ) of
+                            case ( model.reply, model.msg ) of
                                 ( Nothing, Nothing ) ->
                                     ( "Authorization"
                                     , Just <|
