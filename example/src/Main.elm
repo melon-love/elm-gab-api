@@ -264,6 +264,9 @@ init _ url key =
         tokenAndState =
             receiveTokenAndState url
 
+        nono =
+            ( Nothing, Nothing )
+
         ( ( token, savedToken ), state, msg ) =
             case tokenAndState of
                 TokenAndState tok stat ->
@@ -276,13 +279,13 @@ init _ url key =
                     ( ( Just tok, Just st ), stat, Nothing )
 
                 TokenErrorAndState m stat ->
-                    ( ( Nothing, Nothing ), stat, Just m )
+                    ( nono, stat, Just m )
 
                 TokenDecodeError m ->
-                    ( ( Nothing, Nothing ), Nothing, Just m )
+                    ( nono, Nothing, Just m )
 
                 NoToken ->
-                    ( ( Nothing, Nothing ), Nothing, Nothing )
+                    ( nono, Nothing, Nothing )
 
         ( reply, scopes ) =
             case token of
