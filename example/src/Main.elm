@@ -22,7 +22,15 @@ import CustomElement.FileListener as File exposing (File)
 import Dict exposing (Dict)
 import Gab
 import Gab.EncodeDecode as ED
-import Gab.Types exposing (ActivityLog, Post, PostForm, RequestParts, User)
+import Gab.Types
+    exposing
+        ( ActivityLog
+        , Post
+        , PostForm
+        , RequestParts
+        , SavedToken
+        , User
+        )
 import Html
     exposing
         ( Attribute
@@ -125,7 +133,7 @@ type alias Model =
     , funnelState : PortFunnels.State
     , scopes : List String
     , receivedScopes : List String
-    , token : Maybe ResponseToken
+    , token : Maybe SavedToken
     , state : Maybe String
     , msg : Maybe String
     , request : Maybe (RequestParts JD.Value)
@@ -253,8 +261,11 @@ localStoragePrefix =
 init : () -> Url -> Key -> ( Model, Cmd Msg )
 init _ url key =
     let
+        tokenAndState =
+            receiveTokenAndState url
+
         ( token, state, msg ) =
-            case receiveTokenAndState url of
+            case tokenAndState of
                 TokenAndState tok stat ->
                     ( Just tok, stat, Nothing )
 
@@ -276,37 +287,49 @@ init _ url key =
                     ( Just <| responseTokenEncoder tok
                     , tok.scope
                     )
+
+        savedToken =
+            case token of
+                Nothing ->
+                    Nothing
+
+                Just tok ->
+                    Just <|
+                        Gab.savedTokenFromResponseToken (Time.millisToPosix 0) tok
+
+        model =
+            { key = key
+            , funnelState = PortFunnels.initialState localStoragePrefix
+            , token = savedToken
+            , state = state
+            , msg = msg
+            , request = Nothing
+            , loggedInUser = Nothing
+            , replyType = "Token"
+            , replyThing =
+                ValueThing JE.null
+            , reply = reply
+            , redirectBackUri = locationToRedirectBackUri url
+            , authorization = Nothing
+            , scopes = scopes
+            , receivedScopes = scopes
+            , tokenAuthorization = Nothing
+            , prettify = True
+            , username = "xossbow"
+            , userBefore = 0
+            , userProfile = Nothing
+            , postUser = "xossbow"
+            , postGroup = "62c38c34-0559-4e2e-a382-98b1ba9acf18"
+            , postBefore = ""
+            , postId = ""
+            , postBody = ""
+            , post = Nothing
+            , file = Nothing
+            , uploading = NotUploading
+            , showRaw = True
+            }
     in
-    { key = key
-    , funnelState = PortFunnels.initialState localStoragePrefix
-    , token = token
-    , state = state
-    , msg = msg
-    , request = Nothing
-    , loggedInUser = Nothing
-    , replyType = "Token"
-    , replyThing =
-        ValueThing JE.null
-    , reply = reply
-    , redirectBackUri = locationToRedirectBackUri url
-    , authorization = Nothing
-    , scopes = scopes
-    , receivedScopes = scopes
-    , tokenAuthorization = Nothing
-    , prettify = True
-    , username = "xossbow"
-    , userBefore = 0
-    , userProfile = Nothing
-    , postUser = "xossbow"
-    , postGroup = "62c38c34-0559-4e2e-a382-98b1ba9acf18"
-    , postBefore = ""
-    , postId = ""
-    , postBody = ""
-    , post = Nothing
-    , file = Nothing
-    , uploading = NotUploading
-    , showRaw = True
-    }
+    model
         |> withCmds
             [ Http.send ReceiveAuthorization <|
                 getAuthorization False "authorization.json"
@@ -316,7 +339,11 @@ init _ url key =
                     Task.perform (PersistResponseToken t) Time.now
 
                 Nothing ->
-                    Cmd.none
+                    if tokenAndState == NoToken then
+                        localStorageSend (LocalStorage.get tokenKey) model
+
+                    else
+                        Cmd.none
             ]
 
 
@@ -324,8 +351,29 @@ storageHandler : LocalStorage.Response -> PortFunnels.State -> Model -> ( Model,
 storageHandler response state model =
     case response of
         LocalStorage.GetResponse { key, value } ->
-            -- TODO
-            model |> withNoCmd
+            if key /= tokenKey then
+                model |> withNoCmd
+
+            else
+                case value of
+                    Nothing ->
+                        model |> withNoCmd
+
+                    Just v ->
+                        case JD.decodeValue ED.savedTokenDecoder v of
+                            Err err ->
+                                { model | msg = Just <| JD.errorToString err }
+                                    |> withNoCmd
+
+                            Ok savedToken ->
+                                ( { model
+                                    | token = Just savedToken
+                                    , scopes = savedToken.scope
+                                    , receivedScopes = savedToken.scope
+                                  }
+                                , Http.send ReceiveLoggedInUser <|
+                                    Gab.me savedToken.token
+                                )
 
         _ ->
             model |> withNoCmd
@@ -741,11 +789,9 @@ update msg model =
 
         PersistResponseToken token time ->
             let
-                savedToken =
-                    Gab.savedTokenFromResponseToken time token
-
                 value =
-                    ED.savedTokenEncoder savedToken
+                    Gab.savedTokenFromResponseToken time token
+                        |> ED.savedTokenEncoder
             in
             ( model
             , localStorageSend
