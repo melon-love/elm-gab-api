@@ -469,7 +469,7 @@ popularFeedParts decoder token =
 
     homeFeed token before
 
-The posts returned will have dates before `before`. Pass the empty string for either to not limit that end.
+The posts returned will have dates before `before`. Pass the empty string to get the beginning of the list.
 
 -}
 homeFeed : Token -> String -> Http.Request ActivityLogList
@@ -482,7 +482,7 @@ homeFeed token before =
 
     homeFeedParts decoder token before
 
-The posts returned will have dates before `before`. Pass the empty string for either to not limit that end.
+The posts returned will have dates before `before`. Pass the empty string to get the beginning of the list.
 
 -}
 homeFeedParts : Decoder a -> Token -> String -> RequestParts a
@@ -494,7 +494,7 @@ homeFeedParts decoder token before =
 
     userFeed token user before
 
-The posts returned will have dates before `before`. Pass the empty string for either to not limit that end.
+The posts returned will have dates before `before`. Pass the empty string to get the beginning of the list.
 
 -}
 userFeed : Token -> String -> String -> Http.Request ActivityLogList
@@ -507,7 +507,7 @@ userFeed token user before =
 
     userFeedParts decoder user token before
 
-The posts returned will have dates before `before`. Pass the empty string for either to not limit that end.
+The posts returned will have dates before `before`. Pass the empty string to get the beginning of the list.
 
 -}
 userFeedParts : Decoder a -> Token -> String -> String -> RequestParts a
@@ -515,33 +515,112 @@ userFeedParts decoder token user before =
     beforeAfterParts ("users/" ++ user ++ "/feed") decoder token before
 
 
+{-| Return a list of popular groups.
+-}
+popularGroups : Token -> Http.Request Value
+popularGroups token =
+    popularGroupsParts JD.value token
+        |> request
+
+
+{-| Return a list of popular groups, using a custom decoder.
+-}
+popularGroupsParts : Decoder a -> Token -> RequestParts a
+popularGroupsParts decoder token =
+    getParts decoder token "groups"
+
+
+{-| Return details for a particular group.
+
+    groupDetails token groupid
+
+-}
+groupDetails : Token -> String -> Http.Request Value
+groupDetails token groupid =
+    groupDetailsParts JD.value token groupid
+        |> request
+
+
+{-| Return details for a particular group, using a custom decoder.
+
+    groupDetails decoder token groupid
+
+-}
+groupDetailsParts : Decoder a -> Token -> String -> RequestParts a
+groupDetailsParts decoder token groupid =
+    getParts decoder token <| "groups/" ++ groupid
+
+
+{-| Return user for a group.
+
+    userFeed token groupid before
+
+The users are numbered from the first one to join. Pass 0 to get the beginning of the list.
+
+-}
+groupUsers : Token -> String -> Int -> Http.Request Value
+groupUsers token groupid before =
+    groupUsersParts JD.value token groupid before
+        |> request
+
+
+groupUsersParts : Decoder a -> Token -> String -> Int -> RequestParts a
+groupUsersParts decoder token groupid before =
+    beforeAfterParts ("groups/" ++ groupid ++ "/users")
+        decoder
+        token
+    <|
+        String.fromInt before
+
+
+{-| Return the moderation logs for a group.
+
+    groupModerationLogs token groupid
+
+-}
+groupModerationLogs : Token -> String -> Http.Request Value
+groupModerationLogs token groupid =
+    groupModerationLogsParts JD.value token groupid
+        |> request
+
+
+{-| Return the moderation logs for a group, using a custom decoder.
+
+    groupModerationLogs decoder token groupid
+
+-}
+groupModerationLogsParts : Decoder a -> Token -> String -> RequestParts a
+groupModerationLogsParts decoder token groupid =
+    getParts decoder token <| "groups/" ++ groupid ++ "/moderation-logs"
+
+
 {-| Return posts for a group feed.
 
     groupFeed token group before
 
-The posts returned will have dates before `before`. Pass the empty string for either to not limit that end.
+The posts returned will have dates before `before`. Pass the empty string to get the beginning of the list.
 
 This is a guess at what this API command will look like. It doesn't yet exist.
 
 -}
 groupFeed : Token -> String -> String -> Http.Request ActivityLogList
-groupFeed token group before =
-    groupFeedParts ED.activityLogListDecoder token group before
+groupFeed token groupid before =
+    groupFeedParts ED.activityLogListDecoder token groupid before
         |> request
 
 
 {-| Return posts for a group feed, using a custom decoder.
 
-    groupFeedParts decoder group token before
+    groupFeedParts decoder groupid token before
 
-The posts returned will have dates before `before`. Pass the empty string for either to not limit that end.
+The posts returned will have dates before `before`. Pass the empty string to get the beginning of the list.
 
 This is a guess at what this API command will look like. It doesn't yet exist.
 
 -}
 groupFeedParts : Decoder a -> Token -> String -> String -> RequestParts a
-groupFeedParts decoder token group before =
-    beforeAfterParts ("groups/" ++ group ++ "/feed") decoder token before
+groupFeedParts decoder token groupid before =
+    beforeAfterParts ("groups/" ++ groupid ++ "/feed") decoder token before
 
 
 {-| Get a single post.
