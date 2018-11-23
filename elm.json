@@ -3,7 +3,7 @@
     "name": "melon-love/elm-gab-api",
     "summary": "elm-gab-api implements communication with api.gab.com",
     "license": "MIT",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "exposed-modules": [
         "Gab",
         "Gab.EncodeDecode",
