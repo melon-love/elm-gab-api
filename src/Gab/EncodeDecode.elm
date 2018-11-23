@@ -58,6 +58,7 @@ import Gab.Types
         , Attachment(..)
         , CategoryDetails
         , Embed
+        , Group
         , MediaRecord
         , Post
         , PostForm
@@ -262,8 +263,8 @@ recursivePostListDecoder =
     JD.field "data" <| JD.list recursivePostDecoder
 
 
-makePost : Int -> String -> Maybe String -> Bool -> String -> Maybe String -> Maybe String -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Int -> Int -> Int -> Int -> Int -> Bool -> Bool -> Bool -> Maybe Embed -> Attachment -> Maybe Int -> Maybe CategoryDetails -> Maybe String -> Bool -> Bool -> Bool -> User -> Maybe Topic -> Maybe Post -> PostList -> Post
-makePost id created_at revised_at edited body body_html body_html_summary body_html_summary_truncated only_emoji liked disliked bookmarked repost reported score like_count dislike_count reply_count repost_count is_quote is_reply is_replies_disabled embed attachment category category_details language nsfw is_premium is_locked user topic parent replies =
+makePost : Int -> String -> Maybe String -> Bool -> String -> Maybe String -> Maybe String -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Int -> Int -> Int -> Int -> Int -> Bool -> Bool -> Bool -> Maybe Embed -> Attachment -> Maybe Int -> Maybe CategoryDetails -> Maybe String -> Bool -> Bool -> Bool -> User -> Maybe Group -> Maybe Topic -> Maybe Post -> PostList -> Post
+makePost id created_at revised_at edited body body_html body_html_summary body_html_summary_truncated only_emoji liked disliked bookmarked repost reported score like_count dislike_count reply_count repost_count is_quote is_reply is_replies_disabled embed attachment category category_details language nsfw is_premium is_locked user group topic parent replies =
     { id = id
     , created_at = created_at
     , revised_at = revised_at
@@ -295,6 +296,7 @@ makePost id created_at revised_at edited body body_html body_html_summary body_h
     , is_premium = is_premium
     , is_locked = is_locked
     , user = user
+    , group = group
     , topic = topic
     , related = RelatedPosts { parent = parent, replies = replies }
     }
@@ -336,6 +338,7 @@ postDecoder =
         |> required "is_premium" bool
         |> required "is_locked" bool
         |> required "user" userDecoder
+        |> optional "group" (JD.nullable groupDecoder) Nothing
         |> optional "topic" (JD.nullable topicDecoder) Nothing
         |> optional "parent"
             (JD.nullable (JD.lazy (\_ -> recursivePostDecoder)))
@@ -396,6 +399,7 @@ postEncoder post =
               , ( "is_locked", JE.bool post.is_locked )
               , ( "user", userEncoder post.user )
               , ( "topic", maybeEncoder topicEncoder post.topic )
+              , ( "group", maybeEncoder groupEncoder post.group )
               ]
             , relatedPostsFields post.related
             ]
@@ -644,6 +648,32 @@ topicEncoder topic =
                 Just u ->
                     [ ( "user", userEncoder u ) ]
             ]
+
+
+groupDecoder : Decoder Group
+groupDecoder =
+    JD.succeed Group
+        |> required "id" string
+        |> required "title" string
+        |> required "pinned_post_id" string
+        |> required "cover_url" string
+        |> required "description" string
+        |> required "is_private" bool
+        |> required "is_joined" bool
+
+
+groupEncoder : Group -> Value
+groupEncoder group =
+    JE.object <|
+        [ ( "id", JE.string group.id )
+        , ( "title", JE.string group.title )
+        , ( "pinned_post_id", JE.string group.pinned_post_id )
+        , ( "archived_at", JE.null )
+        , ( "cover_url", JE.string group.cover_url )
+        , ( "description", JE.string group.description )
+        , ( "is_private", JE.bool group.is_private )
+        , ( "is_joined", JE.bool group.is_joined )
+        ]
 
 
 {-| Decode a `PostList`.

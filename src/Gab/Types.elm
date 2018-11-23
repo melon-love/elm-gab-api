@@ -16,7 +16,7 @@ module Gab.Types exposing
     , User, UserList
     , ActivityLog, ActivityLogList
     , Post, PostList
-    , Embed, CategoryDetails, Topic, RelatedPosts(..)
+    , Embed, CategoryDetails, Group, Topic, RelatedPosts(..)
     , Attachment(..), UrlRecord, MediaRecord, UnknownAttachmentRecord
     , PostForm
     , SavedToken
@@ -48,7 +48,7 @@ module Gab.Types exposing
 # Posts
 
 @docs Post, PostList
-@docs Embed, CategoryDetails, Topic, RelatedPosts
+@docs Embed, CategoryDetails, Group, Topic, RelatedPosts
 
 
 # Attachments
@@ -204,8 +204,22 @@ type alias Post =
     , is_premium : Bool
     , is_locked : Bool
     , user : User
+    , group : Maybe Group
     , topic : Maybe Topic
     , related : RelatedPosts
+    }
+
+
+{-| Group description for a Post.
+-}
+type alias Group =
+    { id : String
+    , title : String
+    , pinned_post_id : String
+    , cover_url : String
+    , description : String
+    , is_private : Bool
+    , is_joined : Bool
     }
 
 
