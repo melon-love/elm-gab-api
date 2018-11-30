@@ -17,6 +17,10 @@ module Gab.EncodeDecode exposing
     , postDecoder, postEncoder, postListDecoder, postListEncoder
     , postFormEncoder
     , mediaIdDecoder, mediaIdEncoder
+    , successDecoder, successEncoder
+    , notificationTypeDecoder, notificationTypeEncoder
+    , notificationsLogDecoder, notificationsLogEncoder
+    , notificationDecoder, notificationEncoder
     , savedTokenEncoder, savedTokenDecoder
     )
 
@@ -45,6 +49,18 @@ module Gab.EncodeDecode exposing
 @docs mediaIdDecoder, mediaIdEncoder
 
 
+# Successful return from operations with nothing more to report.
+
+@docs successDecoder, successEncoder
+
+
+# Notifications
+
+@docs notificationTypeDecoder, notificationTypeEncoder
+@docs notificationsLogDecoder, notificationsLogEncoder
+@docs notificationDecoder, notificationEncoder
+
+
 # Persistent tokens
 
 @docs savedTokenEncoder, savedTokenDecoder
@@ -60,11 +76,15 @@ import Gab.Types
         , Embed
         , Group
         , MediaRecord
+        , Notification
+        , NotificationType(..)
+        , NotificationsLog
         , Post
         , PostForm
         , PostList
         , RelatedPosts(..)
         , SavedToken
+        , Success
         , Topic
         , UnknownAttachmentRecord
         , UrlRecord
@@ -821,6 +841,150 @@ mediaIdDecoder =
 mediaIdEncoder : String -> Value
 mediaIdEncoder id =
     JE.object [ ( "id", JE.string id ) ]
+
+
+{-| Decode a successful completion object.
+
+Returned from operations with nothing else of use to report.
+
+-}
+successDecoder : Decoder Success
+successDecoder =
+    JD.map2
+        (\state message ->
+            { state = "success" == state
+            , message = message
+            }
+        )
+        (JD.field "state" JD.string)
+        (JD.field "message" JD.string)
+
+
+{-| Encode a successful completion object.
+
+Returned from operations with nothing else of use to report.
+
+-}
+successEncoder : Success -> Value
+successEncoder success =
+    JE.object
+        [ ( "state"
+          , JE.string <|
+                if success.state then
+                    "success"
+
+                else
+                    "failure"
+          )
+        , ( "message", JE.string success.message )
+        ]
+
+
+{-| Decode a `NotificationsLog`.
+-}
+notificationsLogDecoder : Decoder NotificationsLog
+notificationsLogDecoder =
+    JD.map2 NotificationsLog
+        (JD.field "data" <| JD.list notificationDecoder)
+        (JD.field "no-more" JD.bool)
+
+
+{-| Encode a `NotificationsLog`.
+-}
+notificationsLogEncoder : NotificationsLog -> Value
+notificationsLogEncoder log =
+    JE.object
+        [ ( "data", JE.list notificationEncoder log.data )
+        , ( "no-more", JE.bool log.no_more )
+        ]
+
+
+{-| Decode a `NotificationType`.
+-}
+notificationTypeDecoder : Decoder NotificationType
+notificationTypeDecoder =
+    JD.string
+        |> JD.andThen decodeNotificationTypeString
+
+
+decodeNotificationTypeString : String -> Decoder NotificationType
+decodeNotificationTypeString string =
+    case string of
+        "like" ->
+            JD.succeed LikeNotification
+
+        "repost" ->
+            JD.succeed RepostNotification
+
+        "follow" ->
+            JD.succeed FollowNotification
+
+        "mention" ->
+            JD.succeed MentionNotification
+
+        s ->
+            JD.succeed <| UnknownNotification s
+
+
+{-| Encode a `NotificationType`.
+-}
+notificationTypeEncoder : NotificationType -> Value
+notificationTypeEncoder type_ =
+    JE.string <|
+        case type_ of
+            LikeNotification ->
+                "like"
+
+            RepostNotification ->
+                "repost"
+
+            FollowNotification ->
+                "follow"
+
+            MentionNotification ->
+                "mention"
+
+            UnknownNotification s ->
+                s
+
+
+{-| Decode a `Notification`.
+-}
+notificationDecoder : Decoder Notification
+notificationDecoder =
+    JD.succeed Notification
+        |> required "id" string
+        |> required "created_at" string
+        |> required "url" string
+        |> required "type" notificationTypeDecoder
+        |> required "message" string
+        |> required "read" bool
+        |> optional "post" (maybe postDecoder) Nothing
+        |> required "actuser" userDecoder
+
+
+{-| Encode a `Notification`.
+-}
+notificationEncoder : Notification -> Value
+notificationEncoder notification =
+    JE.object
+        (List.concat
+            [ [ ( "id", JE.string notification.id )
+              , ( "created_at", JE.string notification.created_at )
+              , ( "url", JE.string notification.url )
+              , ( "type", notificationTypeEncoder notification.type_ )
+              , ( "message", JE.string notification.message )
+              , ( "read", JE.bool notification.read )
+              ]
+            , case notification.post of
+                Nothing ->
+                    []
+
+                Just post ->
+                    [ ( "post", postEncoder post ) ]
+            , [ ( "actuser", userEncoder notification.actuser ) ]
+            ]
+        )
 
 
 tokenDecoder : Decoder (Maybe Token)

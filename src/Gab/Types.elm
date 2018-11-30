@@ -15,10 +15,12 @@ module Gab.Types exposing
     , PostResult, PostResultState(..)
     , User, UserList
     , ActivityLog, ActivityLogList
+    , NotificationType(..), NotificationsLog, Notification
     , Post, PostList
     , Embed, CategoryDetails, Group, Topic, RelatedPosts(..)
     , Attachment(..), UrlRecord, MediaRecord, UnknownAttachmentRecord
     , PostForm
+    , Success
     , SavedToken
     )
 
@@ -45,6 +47,11 @@ module Gab.Types exposing
 @docs ActivityLog, ActivityLogList
 
 
+# Notifications
+
+@docs NotificationType, NotificationsLog, Notification
+
+
 # Posts
 
 @docs Post, PostList
@@ -59,6 +66,11 @@ module Gab.Types exposing
 # Creating a new post
 
 @docs PostForm
+
+
+# Returned from operations that have no useful data except successful completion.
+
+@docs Success
 
 
 # Persistent tokens
@@ -371,4 +383,44 @@ type alias SavedToken =
     , refreshToken : Maybe Token
     , scope : List String
     , token : Token
+    }
+
+
+{-| Returned from `upvotePost`, `downvotePost`, `follow`, `mute`.
+-}
+type alias Success =
+    { state : Bool
+    , message : String
+    }
+
+
+{-| The type of a notification.
+-}
+type NotificationType
+    = LikeNotification
+    | RepostNotification
+    | FollowNotification
+    | MentionNotification
+    | UnknownNotification String
+
+
+{-| The result from `Gab.notifications`
+-}
+type alias NotificationsLog =
+    { data : List Notification
+    , no_more : Bool
+    }
+
+
+{-| A single notification.
+-}
+type alias Notification =
+    { id : String
+    , created_at : String
+    , url : String
+    , type_ : NotificationType
+    , message : String
+    , read : Bool
+    , post : Maybe Post
+    , actuser : User
     }

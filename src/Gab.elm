@@ -19,6 +19,7 @@ module Gab exposing
     , groupFeed, groupFeedParts
     , popularFeed, popularFeedParts
     , popularUsers, popularUsersParts
+    , notifications, notificationsParts
     , getPost, getPostParts
     , upvotePost, upvotePostParts, downvotePost, downvotePostParts
     , repost, repostParts
@@ -68,6 +69,7 @@ The requests all come in two flavors, one which has the decoder built in, and re
 @docs groupFeed, groupFeedParts
 @docs popularFeed, popularFeedParts
 @docs popularUsers, popularUsersParts
+@docs notifications, notificationsParts
 
 
 # Posts
@@ -112,10 +114,12 @@ import Gab.Types
         ( ActivityLog
         , ActivityLogList
         , HttpBody(..)
+        , NotificationsLog
         , Post
         , PostForm
         , RequestParts
         , SavedToken
+        , Success
         , User
         , UserList
         )
@@ -345,9 +349,9 @@ popularUsersParts decoder token =
     followUser token username unfollow
 
 -}
-followUser : Token -> String -> Bool -> Http.Request Value
+followUser : Token -> String -> Bool -> Http.Request Success
 followUser token username unfollow =
-    followUserParts JD.value token username unfollow
+    followUserParts ED.successDecoder token username unfollow
         |> request
 
 
@@ -358,9 +362,9 @@ followUser token username unfollow =
 This isn't currently implemented by the API, but I expect that to change.
 
 -}
-muteUser : Token -> String -> Bool -> Http.Request Value
+muteUser : Token -> String -> Bool -> Http.Request Success
 muteUser token username unmute =
-    muteUserParts JD.value token username unmute
+    muteUserParts ED.successDecoder token username unmute
         |> request
 
 
@@ -611,7 +615,7 @@ groupFeed token groupid before =
 
 {-| Return posts for a group feed, using a custom decoder.
 
-    groupFeedParts decoder groupid token before
+    groupFeedParts decoder token groupid before
 
 The posts returned will have dates before `before`. Pass the empty string to get the beginning of the list.
 
@@ -621,6 +625,31 @@ This is a guess at what this API command will look like. It doesn't yet exist.
 groupFeedParts : Decoder a -> Token -> String -> String -> RequestParts a
 groupFeedParts decoder token groupid before =
     beforeAfterParts ("groups/" ++ groupid ++ "/feed") decoder token before
+
+
+{-| Return notifications for the logged in user.
+
+    notifications token before
+
+For notifications, the `before` parameter is a notification ID, not a date.
+
+-}
+notifications : Token -> String -> Http.Request NotificationsLog
+notifications token before =
+    notificationsParts ED.notificationsLogDecoder token before
+        |> request
+
+
+{-| Return notifications, using a custom decoder.
+
+    notificationsParts decoder token before
+
+For notifications, the `before` parameter is a notification ID, not a date.
+
+-}
+notificationsParts : Decoder a -> Token -> String -> RequestParts a
+notificationsParts decoder token before =
+    beforeAfterParts "notifications" decoder token before
 
 
 {-| Get a single post.
@@ -649,9 +678,9 @@ getPostParts decoder token postid =
     upvotePost token postid unupvote
 
 -}
-upvotePost : Token -> String -> Bool -> Http.Request Value
+upvotePost : Token -> String -> Bool -> Http.Request Success
 upvotePost token postid unupvote =
-    upvotePostParts JD.value token postid unupvote
+    upvotePostParts ED.successDecoder token postid unupvote
         |> request
 
 
@@ -659,10 +688,13 @@ upvotePost token postid unupvote =
 
     downvotePost token postid undownvote
 
+This will return an Http `BadStatus` error if you you're not
+authorized to downvote.
+
 -}
-downvotePost : Token -> String -> Bool -> Http.Request Value
+downvotePost : Token -> String -> Bool -> Http.Request Success
 downvotePost token postid undownvote =
-    downvotePostParts JD.value token postid undownvote
+    downvotePostParts ED.successDecoder token postid undownvote
         |> request
 
 

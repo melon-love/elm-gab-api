@@ -108,6 +108,7 @@ type Thing
     | UserThing Value
     | UserListThing Value
     | ActivityLogListThing Value
+    | NotificationsLogThing Value
     | PostThing Value
     | PostedThing Value
     | ImageUploadThing Value
@@ -179,6 +180,7 @@ type Msg
     | GetUserFollowing
     | GetPopularUsers
     | GetHomeFeed
+    | GetNotifications
     | GetUserFeed
     | GetGroupFeed
     | GetPopularFeed
@@ -186,6 +188,7 @@ type Msg
     | ReceiveUser Bool (Result Http.Error Value)
     | ReceiveUserList (Result Http.Error Value)
     | ReceiveActivityLogList (Result Http.Error Value)
+    | ReceiveNotificationsLog (Result Http.Error Value)
     | ReceiveValue (Result Http.Error Value)
     | ReceivePost (Result Http.Error Value)
     | ReceiveImageUpload (Result Http.Error Value)
@@ -442,6 +445,12 @@ getHomeFeed : Model -> String -> ( Model, Cmd Msg )
 getHomeFeed model before =
     get model ReceiveActivityLogList <|
         \token -> Gab.homeFeedParts JD.value token before
+
+
+getNotifications : Model -> String -> ( Model, Cmd Msg )
+getNotifications model before =
+    get model ReceiveNotificationsLog <|
+        \token -> Gab.notificationsParts JD.value token before
 
 
 getUserFeed : Model -> String -> String -> ( Model, Cmd Msg )
@@ -744,6 +753,9 @@ update msg model =
         GetHomeFeed ->
             getHomeFeed model model.postBefore
 
+        GetNotifications ->
+            getNotifications model model.postBefore
+
         GetUserFeed ->
             getUserFeed model model.postUser model.postBefore
 
@@ -770,6 +782,9 @@ update msg model =
 
         ReceiveActivityLogList result ->
             receiveThing ActivityLogListThing result model
+
+        ReceiveNotificationsLog result ->
+            receiveThing NotificationsLogThing result model
 
         ReceiveValue result ->
             receiveThing ValueThing result model
@@ -953,6 +968,9 @@ decodeEncode thing =
 
         ActivityLogListThing value ->
             doDecodeEncode ED.activityLogListDecoder ED.activityLogListEncoder value
+
+        NotificationsLogThing value ->
+            doDecodeEncode ED.notificationsLogDecoder ED.notificationsLogEncoder value
 
         PostThing value ->
             doDecodeEncode ED.postDecoder ED.postEncoder value
@@ -1204,8 +1222,12 @@ pageBody model =
 
                                                 else
                                                     "Follow"
-                                              , True
-                                              , "Mute"
+                                              , user.is_muted
+                                              , if user.is_muted then
+                                                    "UnMute"
+
+                                                else
+                                                    "Mute"
                                               )
                                             )
                             in
@@ -1228,28 +1250,13 @@ pageBody model =
                                     ]
                                     [ text followText ]
                                 , text " "
-
-                                {--Mute doesn't current work
                                 , button
                                     [ disabled isDisabled
                                     , title theTitle
                                     , onClick <|
-                                        DoOperation "users" "mute" model.username False
+                                        DoOperation "users" "mute" model.username unmute
                                     ]
                                     [ text muteText ]
-                                --}
-                                , if isDisabled then
-                                    text ""
-
-                                  else
-                                    span []
-                                        [ text " "
-                                        , button
-                                            [ onClick <|
-                                                DoOperation "users" "mute" model.username True
-                                            ]
-                                            [ text "Unmute" ]
-                                        ]
                                 ]
                             ]
                         , tr []
@@ -1294,6 +1301,9 @@ pageBody model =
                                     [ button [ onClick GetHomeFeed ]
                                         [ text "Home Feed"
                                         ]
+                                    , text " "
+                                    , button [ onClick GetNotifications ]
+                                        [ text "Notifications" ]
                                     ]
                                 ]
                             , tr []
