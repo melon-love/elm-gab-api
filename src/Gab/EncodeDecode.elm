@@ -850,14 +850,14 @@ Returned from operations with nothing else of use to report.
 -}
 successDecoder : Decoder Success
 successDecoder =
-    JD.map2
+    JD.succeed
         (\state message ->
             { state = "success" == state
             , message = message
             }
         )
-        (JD.field "state" JD.string)
-        (JD.field "message" JD.string)
+        |> optional "state" JD.string "success"
+        |> required "message" JD.string
 
 
 {-| Encode a successful completion object.
