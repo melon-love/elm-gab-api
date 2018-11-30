@@ -856,7 +856,7 @@ successDecoder =
             , message = message
             }
         )
-        |> optional "state" JD.string "success"
+        |> optional "state" JD.string "failure"
         |> required "message" JD.string
 
 
