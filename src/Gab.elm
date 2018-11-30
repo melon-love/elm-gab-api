@@ -69,6 +69,10 @@ The requests all come in two flavors, one which has the decoder built in, and re
 @docs groupFeed, groupFeedParts
 @docs popularFeed, popularFeedParts
 @docs popularUsers, popularUsersParts
+
+
+# Notifications
+
 @docs notifications, notificationsParts
 
 
