@@ -746,9 +746,9 @@ getPostParts decoder token postid =
     upvotePost token postid unupvote
 
 -}
-upvotePost : Token -> String -> Bool -> Http.Request Success
+upvotePost : Token -> Int -> Bool -> Http.Request Success
 upvotePost token postid unupvote =
-    upvotePostParts ED.successDecoder token postid unupvote
+    upvotePostParts ED.successDecoder token (String.fromInt postid) unupvote
         |> request
 
 
@@ -760,9 +760,9 @@ This will return an Http `BadStatus` error if you you're not
 authorized to downvote.
 
 -}
-downvotePost : Token -> String -> Bool -> Http.Request Success
+downvotePost : Token -> Int -> Bool -> Http.Request Success
 downvotePost token postid undownvote =
-    downvotePostParts ED.successDecoder token postid undownvote
+    downvotePostParts ED.successDecoder token (String.fromInt postid) undownvote
         |> request
 
 
