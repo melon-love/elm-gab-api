@@ -11,20 +11,34 @@
 
 
 module Gab exposing
-    ( me, meParts, userProfile, userProfileParts
-    , userFollowers, userFollowersParts, userFollowing, userFollowingParts
-    , followUser, followUserParts, muteUser, muteUserParts
-    , homeFeed, homeFeedParts
-    , userFeed, userFeedParts
-    , groupFeed, groupFeedParts
-    , popularFeed, popularFeedParts
-    , popularUsers, popularUsersParts
-    , notifications, notificationsParts
-    , getPost, getPostParts
-    , upvotePost, upvotePostParts, downvotePost, downvotePostParts
-    , repost, repostParts
-    , newPost, newPostParts
-    , postImage, postImageParts
+    ( me, userProfile
+    , userFollowers, userFollowing
+    , followUser, muteUser
+    , homeFeed
+    , userFeed
+    , groupFeed
+    , popularFeed
+    , popularUsers
+    , notifications
+    , getPost
+    , upvotePost, downvotePost
+    , repost
+    , newPost
+    , postImage
+    , meParts, userProfileParts
+    , userFollowersParts, userFollowingParts
+    , followUserParts, muteUserParts
+    , homeFeedParts
+    , userFeedParts
+    , groupFeedParts
+    , popularFeedParts
+    , popularUsersParts
+    , notificationsParts
+    , getPostParts
+    , upvotePostParts, downvotePostParts
+    , repostParts
+    , newPostParts
+    , postImageParts
     , doParts, doUsersParts, doPostsParts
     , savedTokenFromResponseToken
     , gabApiUri, request, getParts, requestParts
@@ -33,7 +47,7 @@ module Gab exposing
 
 {-| Client for the Gab.com API, documented at [developers.gab.com](https://developers.gab.com/).
 
-This does NOT do authentication. You'll need to use [billstclair/elm-oauth-middleware](http://package.elm-lang.org/packages/billstclair/elm-oauth-middleware/latest) for that. See the `example` directory.
+This does NOT do authentication. You'll need to use [billstclair/elm-oauth-middleware](http://package.elm-lang.org/packages/billstclair/elm-oauth-middleware/latest) to get a `Token`. See the `example` directory.
 
 The requests all come in two flavors, one which has the decoder built in, and returns an `Http.Request`, and one for which you provide your own decoder, and returns `RequestParts`. E.g.:
 
@@ -51,45 +65,95 @@ The requests all come in two flavors, one which has the decoder built in, and re
             |> request
 
 
-# Users
+# Normal, Auto-Decoding Functions
 
-@docs me, meParts, userProfile, userProfileParts
-@docs userFollowers, userFollowersParts, userFollowing, userFollowingParts
-
-
-# User modification
-
-@docs followUser, followUserParts, muteUser, muteUserParts
+You'll usually use these, not the `Parts` functions below.
 
 
-# Feeds
+## Users
 
-@docs homeFeed, homeFeedParts
-@docs userFeed, userFeedParts
-@docs groupFeed, groupFeedParts
-@docs popularFeed, popularFeedParts
-@docs popularUsers, popularUsersParts
+@docs me, userProfile
+@docs userFollowers, userFollowing
 
 
-# Notifications
+## User Interaction
 
-@docs notifications, notificationsParts
-
-
-# Posts
-
-@docs getPost, getPostParts
-@docs upvotePost, upvotePostParts, downvotePost, downvotePostParts
-@docs repost, repostParts
+@docs followUser, muteUser
 
 
-# New Posts
+## Feeds
 
-@docs newPost, newPostParts
-@docs postImage, postImageParts
+@docs homeFeed
+@docs userFeed
+@docs groupFeed
+@docs popularFeed
+@docs popularUsers
+
+
+## Notifications
+
+@docs notifications
+
+
+## Posts
+
+@docs getPost
+@docs upvotePost, downvotePost
+@docs repost
+
+
+## New Posts
+
+@docs newPost
+@docs postImage
+
+
+# Parts Functions The Return a Value
+
+These are mostly for the example, but if you need to get your hands on the raw return `Value` from the API, use these intead of the auto-decoding versions.
+
+
+## Users
+
+@docs meParts, userProfileParts
+@docs userFollowersParts, userFollowingParts
+
+
+## User Interaction
+
+@docs followUserParts, muteUserParts
+
+
+## Feeds
+
+@docs homeFeedParts
+@docs userFeedParts
+@docs groupFeedParts
+@docs popularFeedParts
+@docs popularUsersParts
+
+
+## Notifications
+
+@docs notificationsParts
+
+
+## Posts
+
+@docs getPostParts
+@docs upvotePostParts, downvotePostParts
+@docs repostParts
+
+
+## New Posts
+
+@docs newPostParts
+@docs postImageParts
 
 
 # Generic requests
+
+These are low-level functions used to implement the others. You won't need them unless you need to implement new API functionality that isn't yet in this module.
 
 @docs doParts, doUsersParts, doPostsParts
 
