@@ -748,7 +748,7 @@ getPostParts decoder token postid =
 -}
 upvotePost : Token -> Int -> Bool -> Http.Request Success
 upvotePost token postid unupvote =
-    upvotePostParts ED.successDecoder token (String.fromInt postid) unupvote
+    upvotePostParts ED.successDecoder token postid unupvote
         |> request
 
 
@@ -762,7 +762,7 @@ authorized to downvote.
 -}
 downvotePost : Token -> Int -> Bool -> Http.Request Success
 downvotePost token postid undownvote =
-    downvotePostParts ED.successDecoder token (String.fromInt postid) undownvote
+    downvotePostParts ED.successDecoder token postid undownvote
         |> request
 
 
@@ -794,9 +794,9 @@ doPostsParts =
     upvotePostParts decoder token postid unupvote
 
 -}
-upvotePostParts : Decoder a -> Token -> String -> Bool -> RequestParts a
-upvotePostParts =
-    doPostsParts "upvote"
+upvotePostParts : Decoder a -> Token -> Int -> Bool -> RequestParts a
+upvotePostParts decoder token postid =
+    doPostsParts "upvote" decoder token <| String.fromInt postid
 
 
 {-| Downvote or undownvote a post, with a custom decoder.
@@ -804,9 +804,9 @@ upvotePostParts =
     downvotePostParts decoder token postid undownvote
 
 -}
-downvotePostParts : Decoder a -> Token -> String -> Bool -> RequestParts a
-downvotePostParts =
-    doPostsParts "downvote"
+downvotePostParts : Decoder a -> Token -> Int -> Bool -> RequestParts a
+downvotePostParts decoder token postid =
+    doPostsParts "downvote" decoder token <| String.fromInt postid
 
 
 {-| Repost or unrepost, with a custom decoder.
