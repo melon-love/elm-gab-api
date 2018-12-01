@@ -771,7 +771,7 @@ downvotePost token postid undownvote =
     repost token postid unrepost
 
 -}
-repost : Token -> String -> Bool -> Http.Request Value
+repost : Token -> Int -> Bool -> Http.Request Value
 repost token postid unrepost =
     repostParts JD.value token postid unrepost
         |> request
@@ -814,9 +814,9 @@ downvotePostParts decoder token postid =
     repostParts decoder token postid unrepost
 
 -}
-repostParts : Decoder a -> Token -> String -> Bool -> RequestParts a
-repostParts =
-    doPostsParts "repost"
+repostParts : Decoder a -> Token -> Int -> Bool -> RequestParts a
+repostParts decoder token postid =
+    doPostsParts "repost" decoder token <| String.fromInt postid
 
 
 {-| Posting uses JSON, which is not in the spec, but is what the web client does.
