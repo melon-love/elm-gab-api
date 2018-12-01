@@ -771,9 +771,9 @@ downvotePost token postid undownvote =
     repost token postid unrepost
 
 -}
-repost : Token -> Int -> Bool -> Http.Request Value
+repost : Token -> Int -> Bool -> Http.Request Success
 repost token postid unrepost =
-    repostParts JD.value token postid unrepost
+    repostParts ED.successDecoder token postid unrepost
         |> request
 
 
