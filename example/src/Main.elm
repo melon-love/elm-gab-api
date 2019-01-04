@@ -1008,7 +1008,7 @@ userUrl user =
             Nothing
 
         Just u ->
-            Just <| "https://gab.ai/" ++ u
+            Just <| "https://gab.com/" ++ u
 
 
 loggedInUserUrl : Model -> Maybe String
@@ -1043,7 +1043,7 @@ groupUrl group =
             Nothing
 
         Just g ->
-            Just <| "https://gab.ai/groups/" ++ g
+            Just <| "https://gab.com/groups/" ++ g
 
 
 postGroupUrl : Model -> Maybe String
@@ -1273,7 +1273,7 @@ pageBody model =
                         , table []
                             [ tr []
                                 [ td []
-                                    [ b [ link "Popular Feed:" "https://gab.ai/popular" ] ]
+                                    [ b [ link "Popular Feed:" "https://gab.com/popular" ] ]
                                 , td []
                                     [ button [ onClick GetPopularFeed ]
                                         [ text "Get Posts" ]
@@ -1294,7 +1294,7 @@ pageBody model =
                                 [ td []
                                     [ b
                                         [ text nbsp2
-                                        , link "Logged-in User:" "https://gab.ai/"
+                                        , link "Logged-in User:" "https://gab.com/"
                                         ]
                                     ]
                                 , td []
