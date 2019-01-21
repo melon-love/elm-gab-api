@@ -93,16 +93,16 @@ type HttpBody
     | OtherBody Http.Body
 
 
-{-| Names the argument to `Http.request`.
+{-| Names the argument to `Http.request` with `HttpBody`.
 -}
-type alias RequestParts a =
+type alias RequestParts msg =
     { method : String
     , headers : List Http.Header
     , url : String
     , body : HttpBody
-    , expect : Http.Expect a
+    , expect : Http.Expect msg
     , timeout : Maybe Float
-    , withCredentials : Bool
+    , tracker : Maybe String
     }
 
 

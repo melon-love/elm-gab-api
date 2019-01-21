@@ -41,7 +41,7 @@ module Gab exposing
     , postImageParts
     , doParts, doUsersParts, doPostsParts
     , savedTokenFromResponseToken
-    , gabApiUri, request, getParts, requestParts
+    , gabApiUri, request, getParts
     , bodyToString
     )
 
@@ -49,20 +49,20 @@ module Gab exposing
 
 This does NOT do authentication. You'll need to use [billstclair/elm-oauth-middleware](http://package.elm-lang.org/packages/billstclair/elm-oauth-middleware/latest) to get a `Token`. See the `example` directory.
 
-The requests all come in two flavors, one which has the decoder built in, and returns an `Http.Request`, and one for which you provide your own decoder, and returns `RequestParts`. E.g.:
+The requests all come in two flavors, one which has the decoder built in, and returns a `Cmd msg`, and one for which you provide your own decoder. E.g.:
 
-    getTorbaRequest : OAuth.Token -> Http.Request User
-    getTorbaRequest token =
-        userProfile token "a"
+    type Msg
+       = ReceiveUser (Result Http.Error User)
+       | ReceiveUserValue (Result Http.Error Value)
+       ...
 
-    getTorbaParts : OAuth.Token -> RequestParts Json.Decode.Value
+    getTorbaCmd : OAuth.Token -> Cmd Msg
+    getTorbaCmd token =
+        userProfile ReceiveUser token "a"
+
+    getTorbaParts : OAuth.Token -> RequestParts Msg
     getTorbaParts token =
-        userProfileParts Json.Decode.value token "a"
-
-    getTorbaRequestFromParts : OAuth.Token -> Http.Request Json.Decode.Value
-    getTorbaRequestFromParts token =
-        getTorbaParts token
-            |> request
+        userProfileParts Json.Decode.value ReceiveUserValue token "a"
 
 
 # Normal, Auto-Decoding Functions
@@ -209,11 +209,13 @@ gabApiUri =
 
 {-| General-purpose `Http.Request` constructor.
 
-    request method headers token path body decoder
+    request method headers wrapper token path body decoder
 
 `method` is the Http method, e.g. "GET".
 
 `headers` is a list of custom `Http.Header`s.
+
+`wrapper` maps a `Result` to a `msg`.
 
 `token` is an OAuth token, often gotten with [`billstclair/elm-oauth-middleware`](http://package.elm-lang.org/packages/billstclair/elm-oauth-middleware/latest).
 
@@ -222,15 +224,15 @@ gabApiUri =
 `decoder` is a JSON decoder for the result.
 
 -}
-requestParts : String -> List Http.Header -> HttpBody -> Decoder a -> Token -> String -> RequestParts a
-requestParts method headers body decoder token path =
+requestParts : String -> List Http.Header -> HttpBody -> Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> RequestParts msg
+requestParts method headers body decoder wrapper token path =
     { method = method
     , headers = OAuth.useToken token headers
     , url = gabApiUri ++ path
     , body = body
-    , expect = Http.expectJson decoder
+    , expect = Http.expectJson wrapper decoder
     , timeout = Nothing
-    , withCredentials = False
+    , tracker = Nothing
     }
 
 
@@ -268,9 +270,9 @@ realizeBody body =
             bod
 
 
-{-| Turn parts into a ready-to-send `Http.Request`.
+{-| Turn parts into a ready-to-send `Cmd msg`.
 -}
-request : RequestParts a -> Http.Request a
+request : RequestParts msg -> Cmd msg
 request parts =
     Http.request
         { method = parts.method
@@ -279,54 +281,54 @@ request parts =
         , body = realizeBody parts.body
         , expect = parts.expect
         , timeout = parts.timeout
-        , withCredentials = parts.withCredentials
+        , tracker = parts.tracker
         }
 
 
 {-| Simple HTTP GET request. Empty body, no custom headers.
 
-    get token path decoder
+    get decoder wrapper token wrapper path
 
 -}
-getParts : Decoder a -> Token -> String -> RequestParts a
+getParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> RequestParts msg
 getParts =
     requestParts "GET" [] EmptyBody
 
 
 {-| Return the logged-in user's profile information as a User record.
 -}
-me : Token -> Http.Request User
-me token =
-    meParts ED.userDecoder token
+me : (Result Http.Error User -> msg) -> Token -> Cmd msg
+me wrapper token =
+    meParts ED.userDecoder wrapper token
         |> request
 
 
 {-| Return the logged-in user's profile information, using a custom decoder.
 -}
-meParts : Decoder a -> Token -> RequestParts a
-meParts decoder token =
-    getParts decoder token "me/"
+meParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> RequestParts msg
+meParts decoder wrapper token =
+    getParts decoder wrapper token "me/"
 
 
 {-| Return the logged-in user's profile information as a User record.
 -}
-userProfile : Token -> String -> Http.Request User
-userProfile token username =
-    userProfileParts ED.userDecoder token username
+userProfile : (Result Http.Error User -> msg) -> Token -> String -> Cmd msg
+userProfile wrapper token username =
+    userProfileParts ED.userDecoder wrapper token username
         |> request
 
 
 {-| Return the logged-in user's profile information, using a custom decoder.
 -}
-userProfileParts : Decoder a -> Token -> String -> RequestParts a
-userProfileParts decoder token username =
-    getParts decoder token <| "users/" ++ username
+userProfileParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> RequestParts msg
+userProfileParts decoder wrapper token username =
+    getParts decoder wrapper token <| "users/" ++ username
 
 
 {-| Shared by userFollowersParts & userFollowingParts
 -}
-userXxxParts : String -> Decoder a -> Token -> String -> Int -> RequestParts a
-userXxxParts xxx decoder token username before =
+userXxxParts : String -> Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> Int -> RequestParts msg
+userXxxParts xxx decoder wrapper token username before =
     let
         prefix =
             "users/" ++ username ++ xxx
@@ -338,115 +340,115 @@ userXxxParts xxx decoder token username before =
             else
                 prefix ++ "?before=" ++ String.fromInt before
     in
-    getParts decoder token path
+    getParts decoder wrapper token path
 
 
 {-| Return the logged-in user's followers as a UserList record.
 
-    userFollowers token username before
+    userFollowers wrapper token username before
 
 `before` is the number of following users to skip before the listing starts. This enables scrolling through a long list.
 
 -}
-userFollowers : Token -> String -> Int -> Http.Request UserList
-userFollowers token username before =
-    userFollowersParts ED.userListDecoder token username before
+userFollowers : (Result Http.Error UserList -> msg) -> Token -> String -> Int -> Cmd msg
+userFollowers wrapper token username before =
+    userFollowersParts ED.userListDecoder wrapper token username before
         |> request
 
 
 {-| Return the logged-in user's followers, using a custom decoder.
 
-    userFollowersParts decoder token username before
+    userFollowersParts wrapper decoder token username before
 
 `before` is the number of following users to skip before the listing starts. This enables scrolling through a long list.
 
 -}
-userFollowersParts : Decoder a -> Token -> String -> Int -> RequestParts a
+userFollowersParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> Int -> RequestParts msg
 userFollowersParts =
     userXxxParts "/followers"
 
 
 {-| Return a list of users following the logged-in user, as a UserList record.
 
-    userFollowing token username before
+    userFollowing wrapper token username before
 
 `before` is the number of followers to skip before the listing starts. This enables scrolling through a long list.
 
 -}
-userFollowing : Token -> String -> Int -> Http.Request UserList
-userFollowing token username before =
-    userFollowingParts ED.userListDecoder token username before
+userFollowing : (Result Http.Error UserList -> msg) -> Token -> String -> Int -> Cmd msg
+userFollowing wrapper token username before =
+    userFollowingParts ED.userListDecoder wrapper token username before
         |> request
 
 
 {-| Return a list of users following the logged-in user, using a custom decoder.
 
-    userFollowingParts decoder token username before
+    userFollowingParts wrapper decoder token username before
 
 `before` is the number of followers to skip before the listing starts. This enables scrolling through a long list.
 
 -}
-userFollowingParts : Decoder a -> Token -> String -> Int -> RequestParts a
+userFollowingParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> Int -> RequestParts msg
 userFollowingParts =
     userXxxParts "/following"
 
 
 {-| Return a list of popular users, as a UserList record.
 
-    popularUsers token
+    popularUsers wrapper token
 
 -}
-popularUsers : Token -> Http.Request UserList
-popularUsers token =
-    popularUsersParts ED.userListDecoder token
+popularUsers : (Result Http.Error UserList -> msg) -> Token -> Cmd msg
+popularUsers wrapper token =
+    popularUsersParts ED.userListDecoder wrapper token
         |> request
 
 
 {-| Return a list of popular users, using a custom decoder.
 
-    popularUserParts decoder token
+    popularUserParts wrapper decoder token
 
 -}
-popularUsersParts : Decoder a -> Token -> RequestParts a
-popularUsersParts decoder token =
-    getParts decoder token "popular/users"
+popularUsersParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> RequestParts msg
+popularUsersParts decoder wrapper token =
+    getParts decoder wrapper token "popular/users"
 
 
 {-| Follow or unfollow a user. Return value not interesting.
 
-    followUser token username unfollow
+    followUser wrapper token username unfollow
 
 -}
-followUser : Token -> String -> Bool -> Http.Request Success
-followUser token username unfollow =
-    followUserParts ED.successDecoder token username unfollow
+followUser : (Result Http.Error Success -> msg) -> Token -> String -> Bool -> Cmd msg
+followUser wrapper token username unfollow =
+    followUserParts ED.successDecoder wrapper token username unfollow
         |> request
 
 
 {-| Mute or unmute a user. Return value not interesting.
 
-    muteUser token username unmute
+    muteUser wrapper token username unmute
 
 This isn't currently implemented by the API, but I expect that to change.
 
 -}
-muteUser : Token -> String -> Bool -> Http.Request Success
-muteUser token username unmute =
-    muteUserParts ED.successDecoder token username unmute
+muteUser : (Result Http.Error Success -> msg) -> Token -> String -> Bool -> Cmd msg
+muteUser wrapper token username unmute =
+    muteUserParts ED.successDecoder wrapper token username unmute
         |> request
 
 
 {-| Shared by doUsersParts and doPostParts
 
-    doParts prefix operation decoder token identifier undo
+    doParts prefix operation decoder wrapper token identifier undo
 
 `prefix` can be "users" or "posts".
 
 If `undo` is `True`, does a DELETE. Otherwise, does a POST.
 
 -}
-doParts : String -> String -> Decoder a -> Token -> String -> Bool -> RequestParts a
-doParts prefix operation decoder token identifier undo =
+doParts : String -> String -> Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> Bool -> RequestParts msg
+doParts prefix operation decoder wrapper token identifier undo =
     let
         method =
             if undo then
@@ -458,50 +460,50 @@ doParts prefix operation decoder token identifier undo =
         path =
             prefix ++ "/" ++ identifier ++ "/" ++ operation
     in
-    requestParts method [] EmptyBody decoder token path
+    requestParts method [] EmptyBody decoder wrapper token path
 
 
 {-| Shared by followUserParts and muteUserParts
 
-    doUsersParts operation decoder token username undo
+    doUsersParts operation decoder wrapper token username undo
 
 `operation` can be "follow" or "mute".
 
 -}
-doUsersParts : String -> Decoder a -> Token -> String -> Bool -> RequestParts a
+doUsersParts : String -> Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> Bool -> RequestParts msg
 doUsersParts =
     doParts "users"
 
 
 {-| Follow or unfollow a user, with a custom decoder.
 
-    followUserParts decoder token username unfollow
+    followUserParts decoder wrapper token username unfollow
 
 -}
-followUserParts : Decoder a -> Token -> String -> Bool -> RequestParts a
+followUserParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> Bool -> RequestParts msg
 followUserParts =
     doUsersParts "follow"
 
 
 {-| Mute or unmute a user, with a custom decoder.
 
-    muteUserParts decoder token username unmute
+    muteUserParts decoder wrapper token username unmute
 
 This isn't currently implemented by the API, but I expect that to change.
 
 -}
-muteUserParts : Decoder a -> Token -> String -> Bool -> RequestParts a
+muteUserParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> Bool -> RequestParts msg
 muteUserParts =
     doUsersParts "mute"
 
 
 {-| Shared by all the getters that take before dates.
 
-    beforeAfterParts prefix decoder token before
+    beforeAfterParts prefix decoder wrapper token before
 
 -}
-beforeAfterParts : String -> Decoder a -> Token -> String -> RequestParts a
-beforeAfterParts prefix decoder token before =
+beforeAfterParts : String -> Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> RequestParts msg
+beforeAfterParts prefix decoder wrapper token before =
     let
         queries =
             if before == "" then
@@ -513,133 +515,134 @@ beforeAfterParts prefix decoder token before =
         path =
             prefix ++ Builder.toQuery queries
     in
-    getParts decoder token path
+    getParts decoder wrapper token path
 
 
 {-| Return the posts in the "popular" feed, as a ActivityLogList.
 
-    popularFeed token
+    popularFeed wrapper token
 
 -}
-popularFeed : Token -> Http.Request ActivityLogList
-popularFeed token =
-    popularFeedParts ED.activityLogListDecoder token
+popularFeed : (Result Http.Error ActivityLogList -> msg) -> Token -> Cmd msg
+popularFeed wrapper token =
+    popularFeedParts ED.activityLogListDecoder wrapper token
         |> request
 
 
 {-| Return the posts in the "popular" feed, using a custom decoder.
 
-    popularFeedParts decoder token
+    popularFeedParts decoder wrapper token
 
 -}
-popularFeedParts : Decoder a -> Token -> RequestParts a
-popularFeedParts decoder token =
-    beforeAfterParts "popular/feed" decoder token ""
+popularFeedParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> RequestParts msg
+popularFeedParts decoder wrapper token =
+    beforeAfterParts "popular/feed" decoder wrapper token ""
 
 
 {-| Return posts in the home feed.
 
-    homeFeed token before
+    homeFeed wrapper token before
 
 The posts returned will have dates before `before`. Pass the empty string to get the beginning of the list.
 
 -}
-homeFeed : Token -> String -> Http.Request ActivityLogList
-homeFeed token before =
-    homeFeedParts ED.activityLogListDecoder token before
+homeFeed : (Result Http.Error ActivityLogList -> msg) -> Token -> String -> Cmd msg
+homeFeed wrapper token before =
+    homeFeedParts ED.activityLogListDecoder wrapper token before
         |> request
 
 
 {-| Return posts in the home feed, using a custom encoder.
 
-    homeFeedParts decoder token before
+    homeFeedParts decoder wrapper token before
 
 The posts returned will have dates before `before`. Pass the empty string to get the beginning of the list.
 
 -}
-homeFeedParts : Decoder a -> Token -> String -> RequestParts a
-homeFeedParts decoder token before =
-    beforeAfterParts "feed" decoder token before
+homeFeedParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> RequestParts msg
+homeFeedParts decoder wrapper token before =
+    beforeAfterParts "feed" decoder wrapper token before
 
 
 {-| Return posts for a user feed.
 
-    userFeed token user before
+    userFeed wrapper token user before
 
 The posts returned will have dates before `before`. Pass the empty string to get the beginning of the list.
 
 -}
-userFeed : Token -> String -> String -> Http.Request ActivityLogList
-userFeed token user before =
-    userFeedParts ED.activityLogListDecoder token user before
+userFeed : (Result Http.Error ActivityLogList -> msg) -> Token -> String -> String -> Cmd msg
+userFeed wrapper token user before =
+    userFeedParts ED.activityLogListDecoder wrapper token user before
         |> request
 
 
 {-| Return posts for a user feed, using a custom decoder.
 
-    userFeedParts decoder user token before
+    userFeedParts decoder wrapper user token before
 
 The posts returned will have dates before `before`. Pass the empty string to get the beginning of the list.
 
 -}
-userFeedParts : Decoder a -> Token -> String -> String -> RequestParts a
-userFeedParts decoder token user before =
-    beforeAfterParts ("users/" ++ user ++ "/feed") decoder token before
+userFeedParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> String -> RequestParts msg
+userFeedParts decoder wrapper token user before =
+    beforeAfterParts ("users/" ++ user ++ "/feed") decoder wrapper token before
 
 
 {-| Return a list of popular groups.
 -}
-popularGroups : Token -> Http.Request Value
-popularGroups token =
-    popularGroupsParts JD.value token
+popularGroups : (Result Http.Error Value -> msg) -> Token -> Cmd msg
+popularGroups wrapper token =
+    popularGroupsParts JD.value wrapper token
         |> request
 
 
 {-| Return a list of popular groups, using a custom decoder.
 -}
-popularGroupsParts : Decoder a -> Token -> RequestParts a
-popularGroupsParts decoder token =
-    getParts decoder token "groups"
+popularGroupsParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> RequestParts msg
+popularGroupsParts decoder wrapper token =
+    getParts decoder wrapper token "groups"
 
 
 {-| Return details for a particular group.
 
-    groupDetails token groupid
+    groupDetails wrapper token groupid
 
 -}
-groupDetails : Token -> String -> Http.Request Value
-groupDetails token groupid =
-    groupDetailsParts JD.value token groupid
+groupDetails : (Result Http.Error Value -> msg) -> Token -> String -> Cmd msg
+groupDetails wrapper token groupid =
+    groupDetailsParts JD.value wrapper token groupid
         |> request
 
 
 {-| Return details for a particular group, using a custom decoder.
 
-    groupDetails decoder token groupid
+    groupDetails decoder wrapper token groupid
 
 -}
-groupDetailsParts : Decoder a -> Token -> String -> RequestParts a
-groupDetailsParts decoder token groupid =
-    getParts decoder token <| "groups/" ++ groupid
+groupDetailsParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> RequestParts msg
+groupDetailsParts decoder wrapper token groupid =
+    getParts decoder wrapper token <| "groups/" ++ groupid
 
 
 {-| Return user for a group.
 
-    userFeed token groupid before
+    userFeed wrapper token groupid before
 
-The users are numbered from the first one to join. Pass 0 to get the beginning of the list.
+The users are numbered from the first one to join. Pass 0 for `before` to get the beginning of the list.
 
 -}
-groupUsers : Token -> String -> Int -> Http.Request Value
-groupUsers token groupid before =
-    groupUsersParts JD.value token groupid before
+groupUsers : (Result Http.Error Value -> msg) -> Token -> String -> Int -> Cmd msg
+groupUsers wrapper token groupid before =
+    groupUsersParts JD.value wrapper token groupid before
         |> request
 
 
-groupUsersParts : Decoder a -> Token -> String -> Int -> RequestParts a
-groupUsersParts decoder token groupid before =
+groupUsersParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> Int -> RequestParts msg
+groupUsersParts decoder wrapper token groupid before =
     beforeAfterParts ("groups/" ++ groupid ++ "/users")
         decoder
+        wrapper
         token
     <|
         String.fromInt before
@@ -647,190 +650,190 @@ groupUsersParts decoder token groupid before =
 
 {-| Return the moderation logs for a group.
 
-    groupModerationLogs token groupid
+    groupModerationLogs wrapper token groupid
 
 -}
-groupModerationLogs : Token -> String -> Http.Request Value
-groupModerationLogs token groupid =
-    groupModerationLogsParts JD.value token groupid
+groupModerationLogs : (Result Http.Error Value -> msg) -> Token -> String -> Cmd msg
+groupModerationLogs wrapper token groupid =
+    groupModerationLogsParts JD.value wrapper token groupid
         |> request
 
 
 {-| Return the moderation logs for a group, using a custom decoder.
 
-    groupModerationLogs decoder token groupid
+    groupModerationLogs decoder wrapper token groupid
 
 -}
-groupModerationLogsParts : Decoder a -> Token -> String -> RequestParts a
-groupModerationLogsParts decoder token groupid =
-    getParts decoder token <| "groups/" ++ groupid ++ "/moderation-logs"
+groupModerationLogsParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> RequestParts msg
+groupModerationLogsParts decoder wrapper token groupid =
+    getParts decoder wrapper token <| "groups/" ++ groupid ++ "/moderation-logs"
 
 
 {-| Return posts for a group feed.
 
-    groupFeed token group before
+    groupFeed wrapper token group before
 
 The posts returned will have dates before `before`. Pass the empty string to get the beginning of the list.
 
 This is a guess at what this API command will look like. It doesn't yet exist.
 
 -}
-groupFeed : Token -> String -> String -> Http.Request ActivityLogList
-groupFeed token groupid before =
-    groupFeedParts ED.activityLogListDecoder token groupid before
+groupFeed : (Result Http.Error ActivityLogList -> msg) -> Token -> String -> String -> Cmd msg
+groupFeed wrapper token groupid before =
+    groupFeedParts ED.activityLogListDecoder wrapper token groupid before
         |> request
 
 
 {-| Return posts for a group feed, using a custom decoder.
 
-    groupFeedParts decoder token groupid before
+    groupFeedParts decoder wrapper token groupid before
 
 The posts returned will have dates before `before`. Pass the empty string to get the beginning of the list.
 
 This is a guess at what this API command will look like. It doesn't yet exist.
 
 -}
-groupFeedParts : Decoder a -> Token -> String -> String -> RequestParts a
-groupFeedParts decoder token groupid before =
-    beforeAfterParts ("groups/" ++ groupid ++ "/feed") decoder token before
+groupFeedParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> String -> RequestParts msg
+groupFeedParts decoder wrapper token groupid before =
+    beforeAfterParts ("groups/" ++ groupid ++ "/feed") decoder wrapper token before
 
 
 {-| Return notifications for the logged in user.
 
-    notifications token before
+    notifications wrapper token before
 
 For notifications, the `before` parameter is a notification ID, not a date.
 
 -}
-notifications : Token -> String -> Http.Request NotificationsLog
-notifications token before =
-    notificationsParts ED.notificationsLogDecoder token before
+notifications : (Result Http.Error NotificationsLog -> msg) -> Token -> String -> Cmd msg
+notifications wrapper token before =
+    notificationsParts ED.notificationsLogDecoder wrapper token before
         |> request
 
 
 {-| Return notifications, using a custom decoder.
 
-    notificationsParts decoder token before
+    notificationsParts decoder wrapper token before
 
 For notifications, the `before` parameter is a notification ID, not a date.
 
 -}
-notificationsParts : Decoder a -> Token -> String -> RequestParts a
-notificationsParts decoder token before =
-    beforeAfterParts "notifications" decoder token before
+notificationsParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> RequestParts msg
+notificationsParts decoder wrapper token before =
+    beforeAfterParts "notifications" decoder wrapper token before
 
 
 {-| Get a single post.
 
-    getPost token postid
+    getPost wrapper token postid
 
 -}
-getPost : Token -> String -> Http.Request Post
-getPost token postid =
-    getPostParts ED.postDecoder token postid
+getPost : (Result Http.Error Post -> msg) -> Token -> String -> Cmd msg
+getPost wrapper token postid =
+    getPostParts ED.postDecoder wrapper token postid
         |> request
 
 
 {-| Get a single post, using a custom decoder.
 
-    getPostParts decoder token postid
+    getPostParts decoder wrapper token postid
 
 -}
-getPostParts : Decoder a -> Token -> String -> RequestParts a
-getPostParts decoder token postid =
-    getParts decoder token <| "posts/" ++ postid
+getPostParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> RequestParts msg
+getPostParts decoder wrapper token postid =
+    getParts decoder wrapper token <| "posts/" ++ postid
 
 
 {-| Upvote or unupvote a post. Return value not interesting.
 
-    upvotePost token postid unupvote
+    upvotePost wrapper token postid unupvote
 
 -}
-upvotePost : Token -> Int -> Bool -> Http.Request Success
-upvotePost token postid unupvote =
-    upvotePostParts ED.successDecoder token postid unupvote
+upvotePost : (Result Http.Error Success -> msg) -> Token -> Int -> Bool -> Cmd msg
+upvotePost wrapper token postid unupvote =
+    upvotePostParts ED.successDecoder wrapper token postid unupvote
         |> request
 
 
 {-| Downvote or undownvote a post. Return value not interesting.
 
-    downvotePost token postid undownvote
+    downvotePost wrapper token postid undownvote
 
 This will return an Http `BadStatus` error if you you're not
 authorized to downvote.
 
 -}
-downvotePost : Token -> Int -> Bool -> Http.Request Success
-downvotePost token postid undownvote =
-    downvotePostParts ED.successDecoder token postid undownvote
+downvotePost : (Result Http.Error Success -> msg) -> Token -> Int -> Bool -> Cmd msg
+downvotePost wrapper token postid undownvote =
+    downvotePostParts ED.successDecoder wrapper token postid undownvote
         |> request
 
 
 {-| Repost or unrepost. Return value not interesting.
 
-    repost token postid unrepost
+    repost wrapper token postid unrepost
 
 -}
-repost : Token -> Int -> Bool -> Http.Request Success
-repost token postid unrepost =
-    repostParts ED.successDecoder token postid unrepost
+repost : (Result Http.Error Success -> msg) -> Token -> Int -> Bool -> Cmd msg
+repost wrapper token postid unrepost =
+    repostParts ED.successDecoder wrapper token postid unrepost
         |> request
 
 
 {-| Shared by upvotePostParts, downvotePostParts, repostParts
 
-    doPostsParts operation decoder token username undo
+    doPostsParts operation decoder wrapper token username undo
 
 `operation` can be "upvote", "downvote" or "repost".
 
 -}
-doPostsParts : String -> Decoder a -> Token -> String -> Bool -> RequestParts a
+doPostsParts : String -> Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> Bool -> RequestParts msg
 doPostsParts =
     doParts "posts"
 
 
 {-| Upvote or unupvote a post, with a custom decoder.
 
-    upvotePostParts decoder token postid unupvote
+    upvotePostParts decoder wrapper token postid unupvote
 
 -}
-upvotePostParts : Decoder a -> Token -> Int -> Bool -> RequestParts a
-upvotePostParts decoder token postid =
-    doPostsParts "upvote" decoder token <| String.fromInt postid
+upvotePostParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> Int -> Bool -> RequestParts msg
+upvotePostParts decoder wrapper token postid =
+    doPostsParts "upvote" decoder wrapper token <| String.fromInt postid
 
 
 {-| Downvote or undownvote a post, with a custom decoder.
 
-    downvotePostParts decoder token postid undownvote
+    downvotePostParts decoder wrapper token postid undownvote
 
 -}
-downvotePostParts : Decoder a -> Token -> Int -> Bool -> RequestParts a
-downvotePostParts decoder token postid =
-    doPostsParts "downvote" decoder token <| String.fromInt postid
+downvotePostParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> Int -> Bool -> RequestParts msg
+downvotePostParts decoder wrapper token postid =
+    doPostsParts "downvote" decoder wrapper token <| String.fromInt postid
 
 
 {-| Repost or unrepost, with a custom decoder.
 
-    repostParts decoder token postid unrepost
+    repostParts decoder wrapper token postid unrepost
 
 -}
-repostParts : Decoder a -> Token -> Int -> Bool -> RequestParts a
-repostParts decoder token postid =
-    doPostsParts "repost" decoder token <| String.fromInt postid
+repostParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> Int -> Bool -> RequestParts msg
+repostParts decoder wrapper token postid =
+    doPostsParts "repost" decoder wrapper token <| String.fromInt postid
 
 
 {-| Posting uses JSON, which is not in the spec, but is what the web client does.
 -}
-newPost : Token -> PostForm -> Http.Request ActivityLog
-newPost token postForm =
-    newPostParts ED.activityLogDecoder token postForm
+newPost : (Result Http.Error ActivityLog -> msg) -> Token -> PostForm -> Cmd msg
+newPost wrapper token postForm =
+    newPostParts ED.activityLogDecoder wrapper token postForm
         |> request
 
 
 {-| Create a new post with a custom decoder.
 -}
-newPostParts : Decoder a -> Token -> PostForm -> RequestParts a
-newPostParts decoder token postForm =
+newPostParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> PostForm -> RequestParts msg
+newPostParts decoder wrapper token postForm =
     let
         method =
             "POST"
@@ -841,7 +844,7 @@ newPostParts decoder token postForm =
         body =
             postFormBody postForm
     in
-    requestParts method [] body decoder token path
+    requestParts method [] body decoder wrapper token path
 
 
 postFormBody : PostForm -> HttpBody
@@ -854,16 +857,16 @@ postFormBody postForm =
 The `String` that comes back is a media ID, to be used in `PostForm.media_attachments`.
 
 -}
-postImage : Token -> File -> Http.Request String
-postImage token file =
-    postImageParts ED.mediaIdDecoder token file
+postImage : (Result Http.Error String -> msg) -> Token -> File -> Cmd msg
+postImage wrapper token file =
+    postImageParts ED.mediaIdDecoder wrapper token file
         |> request
 
 
 {-| Post an image with a custom decoder
 -}
-postImageParts : Decoder a -> Token -> File -> RequestParts a
-postImageParts decoder token file =
+postImageParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> File -> RequestParts msg
+postImageParts decoder wrapper token file =
     let
         method =
             "POST"
@@ -874,7 +877,7 @@ postImageParts decoder token file =
         body =
             imageBody file
     in
-    requestParts method [] body decoder token path
+    requestParts method [] body decoder wrapper token path
 
 
 gabApiBoundary : String
