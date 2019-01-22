@@ -41,7 +41,7 @@ module Gab exposing
     , postImageParts
     , doParts, doUsersParts, doPostsParts
     , savedTokenFromResponseToken
-    , gabApiUri, request, getParts
+    , gabApiUri, request, getParts, requestParts
     , bodyToString
     )
 

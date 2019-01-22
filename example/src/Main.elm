@@ -137,7 +137,7 @@ type alias Model =
     , token : Maybe SavedToken
     , state : Maybe String
     , msg : Maybe String
-    , request : Maybe (RequestParts JD.Value)
+    , request : Maybe (RequestParts Msg)
     , loggedInUser : Maybe String
     , replyType : String
     , replyThing : Thing
@@ -334,8 +334,8 @@ init _ url key =
     in
     model
         |> withCmds
-            [ Http.send ReceiveAuthorization <|
-                getAuthorization False "authorization.json"
+            [ Http.request <|
+                getAuthorization ReceiveAuthorization False "authorization.json"
             , Navigation.replaceUrl key "#"
             , case token of
                 Just t ->
@@ -374,16 +374,15 @@ storageHandler response state model =
                                     , scopes = savedToken.scope
                                     , receivedScopes = savedToken.scope
                                   }
-                                , Http.send ReceiveLoggedInUser <|
-                                    Gab.me savedToken.token
+                                , Gab.me ReceiveLoggedInUser savedToken.token
                                 )
 
         _ ->
             model |> withNoCmd
 
 
-get : Model -> (Result Http.Error Value -> Msg) -> (OAuth.Token -> RequestParts Value) -> ( Model, Cmd Msg )
-get model receiver makeRequest =
+get : Model -> (OAuth.Token -> RequestParts Msg) -> ( Model, Cmd Msg )
+get model makeRequest =
     case model.token of
         Nothing ->
             { model
@@ -403,8 +402,7 @@ get model receiver makeRequest =
                         , replyThing = nullThing
                         , reply = Nothing
                     }
-                        |> withCmd
-                            (Http.send receiver <| Gab.request req)
+                        |> withCmd (Gab.request req)
 
                 _ ->
                     { model | msg = Just "No authorization loaded." }
@@ -413,62 +411,65 @@ get model receiver makeRequest =
 
 getMe : Model -> ( Model, Cmd Msg )
 getMe model =
-    get model (ReceiveUser False) <|
-        \token -> Gab.meParts JD.value token
+    get model <|
+        \token -> Gab.meParts JD.value (ReceiveUser False) token
 
 
 getUserProfile : Model -> String -> ( Model, Cmd Msg )
 getUserProfile model username =
-    get model (ReceiveUser True) <|
-        \token -> Gab.userProfileParts JD.value token username
+    get model <|
+        \token -> Gab.userProfileParts JD.value (ReceiveUser True) token username
 
 
 getUserFollowers : Model -> String -> Int -> ( Model, Cmd Msg )
 getUserFollowers model username before =
-    get model ReceiveUserList <|
-        \token -> Gab.userFollowersParts JD.value token username before
+    get model <|
+        \token ->
+            Gab.userFollowersParts JD.value ReceiveUserList token username before
 
 
 getUserFollowing : Model -> String -> Int -> ( Model, Cmd Msg )
 getUserFollowing model username before =
-    get model ReceiveUserList <|
-        \token -> Gab.userFollowingParts JD.value token username before
+    get model <|
+        \token ->
+            Gab.userFollowingParts JD.value ReceiveUserList token username before
 
 
 getPopularUsers : Model -> ( Model, Cmd Msg )
 getPopularUsers model =
-    get model ReceiveUserList <|
-        \token -> Gab.popularUsersParts JD.value token
+    get model <|
+        \token -> Gab.popularUsersParts JD.value ReceiveUserList token
 
 
 getHomeFeed : Model -> String -> ( Model, Cmd Msg )
 getHomeFeed model before =
-    get model ReceiveActivityLogList <|
-        \token -> Gab.homeFeedParts JD.value token before
+    get model <|
+        \token -> Gab.homeFeedParts JD.value ReceiveActivityLogList token before
 
 
 getNotifications : Model -> String -> ( Model, Cmd Msg )
 getNotifications model before =
-    get model ReceiveNotificationsLog <|
-        \token -> Gab.notificationsParts JD.value token before
+    get model <|
+        \token -> Gab.notificationsParts JD.value ReceiveNotificationsLog token before
 
 
 getUserFeed : Model -> String -> String -> ( Model, Cmd Msg )
 getUserFeed model user before =
-    get model ReceiveActivityLogList <|
-        \token -> Gab.userFeedParts JD.value token user before
+    get model <|
+        \token -> Gab.userFeedParts JD.value ReceiveActivityLogList token user before
 
 
 getGroupFeed : Model -> String -> String -> ( Model, Cmd Msg )
 getGroupFeed model group before =
-    get model ReceiveActivityLogList <|
-        \token -> Gab.groupFeedParts JD.value token group before
+    get model <|
+        \token ->
+            Gab.groupFeedParts JD.value ReceiveActivityLogList token group before
 
 
 getPopularFeed : Model -> ( Model, Cmd Msg )
 getPopularFeed model =
-    get model ReceiveActivityLogList <|
-        \token -> Gab.popularFeedParts JD.value token
+    get model <|
+        \token -> Gab.popularFeedParts JD.value ReceiveActivityLogList token
 
 
 {-| TODO: It would be good to refetch user or post after the operation is done.
@@ -487,22 +488,23 @@ doOperation prefix operation identifier undo model =
                 _ ->
                     model
     in
-    get mod ReceiveValue <|
-        \token -> Gab.doParts prefix operation JD.value token identifier undo
+    get mod <|
+        \token ->
+            Gab.doParts prefix operation JD.value ReceiveValue token identifier undo
 
 
 getPost : Model -> ( Model, Cmd Msg )
 getPost model =
-    get model ReceivePost <|
-        \token -> Gab.getPostParts JD.value token model.postId
+    get model <|
+        \token -> Gab.getPostParts JD.value ReceivePost token model.postId
 
 
 postFile : Model -> ( Model, Cmd Msg )
 postFile model =
     case model.file of
         Just file ->
-            get { model | uploading = Uploading } ReceiveImageUpload <|
-                \token -> Gab.postImageParts JD.value token file
+            get { model | uploading = Uploading } <|
+                \token -> Gab.postImageParts JD.value ReceiveImageUpload token file
 
         _ ->
             -- Shouldn't happen
@@ -511,10 +513,9 @@ postFile model =
 
 newPost : Model -> ( Model, Cmd Msg )
 newPost model =
-    get { model | file = Nothing, uploading = NotUploading }
-        ReceivePosted
-    <|
-        \token -> Gab.newPostParts JD.value token (makePostForm model)
+    get { model | file = Nothing, uploading = NotUploading } <|
+        \token ->
+            Gab.newPostParts JD.value ReceivePosted token (makePostForm model)
 
 
 makePostForm : Model -> PostForm
@@ -704,8 +705,7 @@ update msg model =
                                     Cmd.none
 
                                 Just token ->
-                                    Http.send ReceiveLoggedInUser <|
-                                        Gab.me token.token
+                                    Gab.me ReceiveLoggedInUser token.token
                             )
 
         ReceiveLoggedInUser result ->
