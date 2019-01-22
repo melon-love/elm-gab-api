@@ -175,7 +175,7 @@ These are low-level functions used to implement the others. You won't need them 
 -}
 
 import Char
-import CustomElement.FileListener as File exposing (File, crlf)
+import File exposing (File)
 import Gab.EncodeDecode as ED
 import Gab.Types
     exposing
@@ -250,6 +250,14 @@ bodyToString indent body =
         StringBody mimetype string ->
             "mimetype: " ++ mimetype ++ "\n\n" ++ string
 
+        FileBody file ->
+            "name: "
+                ++ File.name file
+                ++ ", mime: "
+                ++ File.mime file
+                ++ ", size: "
+                ++ String.fromInt (File.size file)
+
         OtherBody _ ->
             "<opaque>"
 
@@ -265,6 +273,9 @@ realizeBody body =
 
         StringBody mimetype string ->
             Http.stringBody mimetype string
+
+        FileBody file ->
+            Http.fileBody file
 
         OtherBody bod ->
             bod
@@ -875,25 +886,9 @@ postImageParts decoder wrapper token file =
             "media-attachments/images"
 
         body =
-            imageBody file
+            FileBody file
     in
     requestParts method [] body decoder wrapper token path
-
-
-gabApiBoundary : String
-gabApiBoundary =
-    "Elm-Gab-API-23skidoo"
-
-
-multipartFormContentType : String
-multipartFormContentType =
-    File.multipartFormContentType gabApiBoundary
-
-
-imageBody : File -> HttpBody
-imageBody file =
-    File.multipartFormData gabApiBoundary file
-        |> StringBody multipartFormContentType
 
 
 {-| Convert an `OAuthMiddleWare.ResponseToken` to `Gab.Types.SavedToken`.

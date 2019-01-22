@@ -18,8 +18,9 @@ import Browser exposing (Document, UrlRequest(..))
 import Browser.Navigation as Navigation exposing (Key)
 import Char
 import Cmd.Extra exposing (withCmd, withCmds, withNoCmd)
-import CustomElement.FileListener as File exposing (File)
 import Dict exposing (Dict)
+import File exposing (File)
+import File.Select as Select
 import Gab
 import Gab.EncodeDecode as ED
 import Gab.Types
@@ -156,6 +157,7 @@ type alias Model =
     , postBody : String
     , post : Maybe Post
     , file : Maybe File
+    , fileUrl : Maybe String
     , uploading : UploadingState
     , showRaw : Bool
     }
@@ -203,7 +205,9 @@ type Msg
     | SetPostId String
     | GetPost
     | SetPostBody String
+    | SelectFile
     | SetFile File
+    | SetFileUrl String
     | NewPost
     | TogglePrettify
     | ShowHideDecoded
@@ -328,6 +332,7 @@ init _ url key =
             , postBody = ""
             , post = Nothing
             , file = Nothing
+            , fileUrl = Nothing
             , uploading = NotUploading
             , showRaw = True
             }
@@ -503,8 +508,20 @@ postFile : Model -> ( Model, Cmd Msg )
 postFile model =
     case model.file of
         Just file ->
-            get { model | uploading = Uploading } <|
-                \token -> Gab.postImageParts JD.value ReceiveImageUpload token file
+            let
+                ( mdl, cmd ) =
+                    get { model | uploading = Uploading } <|
+                        \token ->
+                            Gab.postImageParts JD.value
+                                ReceiveImageUpload
+                                token
+                                file
+            in
+            mdl
+                |> withCmds
+                    [ cmd
+                    , Task.perform SetFileUrl <| File.toUrl file
+                    ]
 
         _ ->
             -- Shouldn't happen
@@ -569,6 +586,11 @@ lookupProvider model =
                         , redirectBackUri = model.redirectBackUri
                         }
             }
+
+
+imageMimeTypes : List String
+imageMimeTypes =
+    [ "image/png", "image/jpg", "image/gif" ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -647,8 +669,21 @@ update msg model =
             }
                 |> withNoCmd
 
+        SelectFile ->
+            model |> withCmd (Select.file imageMimeTypes SetFile)
+
         SetFile file ->
-            postFile { model | file = Just file }
+            postFile
+                { model
+                    | file = Just file
+                    , fileUrl = Nothing
+                }
+
+        SetFileUrl url ->
+            { model
+                | fileUrl = Just url
+            }
+                |> withNoCmd
 
         TogglePrettify ->
             { model | prettify = not model.prettify }
@@ -1491,16 +1526,17 @@ pageBody model =
                                         if model.uploading == Uploading then
                                             "Wait for the image to upload"
 
+                                        else if model.postBody == "" then
+                                            "Fillin 'Post Body' and click."
+
                                         else
                                             ""
                                     , onClick NewPost
-                                    , title "Fillin 'Post Body' and click."
                                     ]
                                     [ text "New Post" ]
                                 , br
-                                , File.fileInput "thefile"
-                                    [ accept "image/*" ]
-                                    [ File.onLoad SetFile ]
+                                , button [ onClick SelectFile ]
+                                    [ text "Choose File" ]
                                 , br
                                 , case model.uploading of
                                     NotUploading ->
@@ -1516,13 +1552,14 @@ pageBody model =
                                         text <| "Error uploading: " ++ err
                                 ]
                             , td []
-                                [ case model.file of
+                                [ text " "
+                                , case model.fileUrl of
                                     Nothing ->
                                         text ""
 
-                                    Just file ->
+                                    Just url ->
                                         img
-                                            [ src file.dataUrl
+                                            [ src url
                                             , width 100
                                             , title <|
                                                 if model.uploading == Uploading then

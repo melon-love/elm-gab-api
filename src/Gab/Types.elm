@@ -79,6 +79,7 @@ module Gab.Types exposing
 
 -}
 
+import File exposing (File)
 import Http
 import Json.Encode exposing (Value)
 import OAuth exposing (Token)
@@ -90,6 +91,7 @@ type HttpBody
     = EmptyBody
     | JsonBody Value
     | StringBody String String
+    | FileBody File
     | OtherBody Http.Body
 
 
