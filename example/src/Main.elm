@@ -530,7 +530,13 @@ postFile model =
 
 newPost : Model -> ( Model, Cmd Msg )
 newPost model =
-    get { model | file = Nothing, uploading = NotUploading } <|
+    get
+        { model
+            | file = Nothing
+            , fileUrl = Nothing
+            , uploading = NotUploading
+        }
+    <|
         \token ->
             Gab.newPostParts JD.value ReceivePosted token (makePostForm model)
 
@@ -834,7 +840,11 @@ update msg model =
             receiveImageUpload result model
 
         AbortImageUpload ->
-            { model | file = Nothing, uploading = NotUploading }
+            { model
+                | file = Nothing
+                , fileUrl = Nothing
+                , uploading = NotUploading
+            }
                 |> withNoCmd
 
         PersistResponseToken token time ->

@@ -275,7 +275,7 @@ realizeBody body =
             Http.stringBody mimetype string
 
         FileBody file ->
-            Http.fileBody file
+            Http.multipartBody [ Http.filePart "file" file ]
 
         OtherBody bod ->
             bod
