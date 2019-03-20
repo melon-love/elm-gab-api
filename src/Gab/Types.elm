@@ -187,7 +187,7 @@ type RelatedPosts
 {-| One post returned from one of the feed reader functions.
 -}
 type alias Post =
-    { id : Int
+    { id : String
     , created_at : String
     , revised_at : Maybe String
     , edited : Bool

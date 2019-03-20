@@ -283,7 +283,7 @@ recursivePostListDecoder =
     JD.field "data" <| JD.list recursivePostDecoder
 
 
-makePost : Int -> String -> Maybe String -> Bool -> String -> Maybe String -> Maybe String -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Int -> Int -> Int -> Int -> Int -> Bool -> Bool -> Bool -> Maybe Embed -> Attachment -> Maybe Int -> Maybe CategoryDetails -> Maybe String -> Bool -> Bool -> Bool -> User -> Maybe Group -> Maybe Topic -> Maybe Post -> PostList -> Post
+makePost : String -> String -> Maybe String -> Bool -> String -> Maybe String -> Maybe String -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Int -> Int -> Int -> Int -> Int -> Bool -> Bool -> Bool -> Maybe Embed -> Attachment -> Maybe Int -> Maybe CategoryDetails -> Maybe String -> Bool -> Bool -> Bool -> User -> Maybe Group -> Maybe Topic -> Maybe Post -> PostList -> Post
 makePost id created_at revised_at edited body body_html body_html_summary body_html_summary_truncated only_emoji liked disliked bookmarked repost reported score like_count dislike_count reply_count repost_count is_quote is_reply is_replies_disabled embed attachment category category_details language nsfw is_premium is_locked user group topic parent replies =
     { id = id
     , created_at = created_at
@@ -322,12 +322,20 @@ makePost id created_at revised_at edited body body_html body_html_summary body_h
     }
 
 
+stringOrIntDecoder : Decoder String
+stringOrIntDecoder =
+    JD.oneOf
+        [ string
+        , int |> JD.andThen (String.fromInt >> JD.succeed)
+        ]
+
+
 {-| Decode a `Post`.
 -}
 postDecoder : Decoder Post
 postDecoder =
     JD.succeed makePost
-        |> required "id" int
+        |> required "id" stringOrIntDecoder
         |> required "created_at" string
         |> optional "revised_at" (JD.nullable string) Nothing
         |> required "edited" bool
@@ -372,7 +380,7 @@ postEncoder : Post -> Value
 postEncoder post =
     JE.object <|
         List.concat
-            [ [ ( "id", JE.int post.id )
+            [ [ ( "id", JE.string post.id )
               , ( "created_at", JE.string post.created_at )
               , ( "revised_at", maybeString post.revised_at )
               , ( "edited", JE.bool post.edited )
