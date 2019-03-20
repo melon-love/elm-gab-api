@@ -760,7 +760,7 @@ getPostParts decoder wrapper token postid =
     upvotePost wrapper token postid unupvote
 
 -}
-upvotePost : (Result Http.Error Success -> msg) -> Token -> Int -> Bool -> Cmd msg
+upvotePost : (Result Http.Error Success -> msg) -> Token -> String -> Bool -> Cmd msg
 upvotePost wrapper token postid unupvote =
     upvotePostParts ED.successDecoder wrapper token postid unupvote
         |> request
@@ -774,7 +774,7 @@ This will return an Http `BadStatus` error if you you're not
 authorized to downvote.
 
 -}
-downvotePost : (Result Http.Error Success -> msg) -> Token -> Int -> Bool -> Cmd msg
+downvotePost : (Result Http.Error Success -> msg) -> Token -> String -> Bool -> Cmd msg
 downvotePost wrapper token postid undownvote =
     downvotePostParts ED.successDecoder wrapper token postid undownvote
         |> request
@@ -785,7 +785,7 @@ downvotePost wrapper token postid undownvote =
     repost wrapper token postid unrepost
 
 -}
-repost : (Result Http.Error Success -> msg) -> Token -> Int -> Bool -> Cmd msg
+repost : (Result Http.Error Success -> msg) -> Token -> String -> Bool -> Cmd msg
 repost wrapper token postid unrepost =
     repostParts ED.successDecoder wrapper token postid unrepost
         |> request
@@ -808,9 +808,9 @@ doPostsParts =
     upvotePostParts decoder wrapper token postid unupvote
 
 -}
-upvotePostParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> Int -> Bool -> RequestParts msg
+upvotePostParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> Bool -> RequestParts msg
 upvotePostParts decoder wrapper token postid =
-    doPostsParts "upvote" decoder wrapper token <| String.fromInt postid
+    doPostsParts "upvote" decoder wrapper token postid
 
 
 {-| Downvote or undownvote a post, with a custom decoder.
@@ -818,9 +818,9 @@ upvotePostParts decoder wrapper token postid =
     downvotePostParts decoder wrapper token postid undownvote
 
 -}
-downvotePostParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> Int -> Bool -> RequestParts msg
+downvotePostParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> Bool -> RequestParts msg
 downvotePostParts decoder wrapper token postid =
-    doPostsParts "downvote" decoder wrapper token <| String.fromInt postid
+    doPostsParts "downvote" decoder wrapper token postid
 
 
 {-| Repost or unrepost, with a custom decoder.
@@ -828,9 +828,9 @@ downvotePostParts decoder wrapper token postid =
     repostParts decoder wrapper token postid unrepost
 
 -}
-repostParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> Int -> Bool -> RequestParts msg
+repostParts : Decoder a -> (Result Http.Error a -> msg) -> Token -> String -> Bool -> RequestParts msg
 repostParts decoder wrapper token postid =
-    doPostsParts "repost" decoder wrapper token <| String.fromInt postid
+    doPostsParts "repost" decoder wrapper token postid
 
 
 {-| Posting uses JSON, which is not in the spec, but is what the web client does.
