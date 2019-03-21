@@ -111,7 +111,7 @@ type alias RequestParts msg =
 {-| Details of a Gab user.
 -}
 type alias User =
-    { id : Int
+    { id : String
     , name : String
     , username : String
     , picture_url : String

@@ -102,7 +102,7 @@ import OAuth exposing (Token)
 userDecoder : Decoder User
 userDecoder =
     JD.succeed User
-        |> required "id" int
+        |> required "id" stringOrIntDecoder
         |> required "name" string
         |> required "username" string
         |> required "picture_url" string
@@ -200,7 +200,7 @@ userEncoder : User -> Value
 userEncoder user =
     JE.object <|
         filterNulls
-            [ ( "id", JE.int user.id )
+            [ ( "id", JE.string user.id )
             , ( "created_at_month_label", maybeString user.created_at_month_label )
             , ( "name", JE.string user.name )
             , ( "username", JE.string user.username )
